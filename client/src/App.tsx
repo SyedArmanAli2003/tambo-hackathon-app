@@ -5,7 +5,7 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
-
+import { TamboProvider } from "@tambo-ai/react";
 
 function Router() {
   return (
@@ -24,16 +24,20 @@ function Router() {
 // - If you want to make theme switchable, pass `switchable` ThemeProvider and use `useTheme` hook
 
 function App() {
+  const tamboApiKey = import.meta.env.VITE_TAMBO_API_KEY || "";
+
   return (
     <ErrorBoundary>
       <ThemeProvider
         defaultTheme="light"
         // switchable
       >
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
+        <TamboProvider apiKey={tamboApiKey}>
+          <TooltipProvider>
+            <Toaster />
+            <Router />
+          </TooltipProvider>
+        </TamboProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );
