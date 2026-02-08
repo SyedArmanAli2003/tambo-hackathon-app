@@ -23,7 +23,13 @@ Tambo is an AI orchestration framework for React that enables:
 
 ### 2. Configure the API Key
 
-Update `.env.local` in the project root:
+Copy `.env.example` to `.env.local` and add your key:
+
+```bash
+cp .env.example .env.local
+```
+
+Then update `.env.local` in the project root:
 
 ```env
 VITE_TAMBO_API_KEY=your_actual_api_key_here
