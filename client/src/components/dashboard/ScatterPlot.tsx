@@ -11,15 +11,21 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { motion } from "framer-motion";
+import { revenueVsCustomersData } from "@/lib/mockData";
 
 interface ScatterPlotProps {
   title: string;
-  data: Array<{ x: number; y: number; [key: string]: any }>;
+  data?: ScatterPlotPoint[];
   xLabel?: string;
   yLabel?: string;
   color?: string;
   height?: number;
 }
+
+type ScatterPlotPoint = { x: number; y: number } & Record<
+  string,
+  string | number | null
+>;
 
 /**
  * ScatterPlot Component
@@ -34,6 +40,17 @@ export default function ScatterPlot({
   color = "#8B5CF6",
   height = 300,
 }: ScatterPlotProps) {
+  const finalData =
+    data ?? revenueVsCustomersData.map((d) => ({ x: d.customers, y: d.revenue }));
+  const isDemoFallback = typeof data === "undefined";
+
+  if (import.meta.env.DEV && isDemoFallback) {
+    console.warn(
+      "ScatterPlot: using default revenueVsCustomersData; no data prop provided",
+      { title }
+    );
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -41,7 +58,14 @@ export default function ScatterPlot({
       transition={{ duration: 0.3, delay: 0.3 }}
     >
       <Card className="p-6 border-2 border-slate-200 hover:shadow-lg transition-shadow">
-        <h3 className="text-lg font-bold text-slate-900 mb-4">{title}</h3>
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <h3 className="text-lg font-bold text-slate-900">{title}</h3>
+          {isDemoFallback ? (
+            <span className="text-xs px-2 py-1 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
+              Demo data
+            </span>
+          ) : null}
+        </div>
         <ResponsiveContainer width="100%" height={height}>
           <RechartsScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -71,7 +95,7 @@ export default function ScatterPlot({
             <Legend />
             <Scatter
               name={`${xLabel} vs ${yLabel}`}
-              data={data}
+              data={finalData}
               fill={color}
               isAnimationActive={true}
             />

@@ -1,212 +1,161 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Send, Loader2, RefreshCw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  KPICard,
-  LineChart,
-  BarChart,
-  PieChart,
-  DataTable,
-  ScatterPlot,
-  StatCard,
-  TextBlock,
-} from "@/components/dashboard";
-import {
-  salesData,
-  regionSalesData,
-  marketShareData,
-  userGrowthData,
-  revenueVsCustomersData,
-  topCustomersData,
-  kpiMetrics,
-  insights,
-} from "@/lib/mockData";
+import { useTamboThread, type TamboThreadMessage } from "@tambo-ai/react";
 
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  timestamp: Date;
-  components?: React.ReactNode[];
+function isContentPart(value: unknown): value is { type: string } {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    "type" in value &&
+    typeof (value as { type?: unknown }).type === "string"
+  );
+}
+
+function contentToText(
+  content: TamboThreadMessage["content"] | undefined
+): string {
+  if (!content || content.length === 0) return "";
+
+  const parts = content
+    .map(part => {
+      if (!isContentPart(part)) return "";
+
+      switch (part.type) {
+        case "text": {
+          const text = (part as { text?: unknown }).text;
+          if (text == null) return "";
+          if (typeof text === "string") return text;
+          if (typeof text === "number" || typeof text === "boolean") {
+            return String(text);
+          }
+
+          if (import.meta.env.DEV) {
+            console.warn("Unexpected non-primitive text content", { text, part });
+          }
+          try {
+            return JSON.stringify(text);
+          } catch {
+            return "[unsupported text payload]";
+          }
+        }
+        case "image_url":
+          return "[image]";
+        default:
+          const label = `[${part.type} content not yet supported]`;
+          if (import.meta.env.DEV) {
+            console.warn("Unsupported message content part", part);
+          }
+          return label;
+      }
+    })
+    .filter(Boolean);
+
+  if (parts.length === 0) {
+    return "[unsupported message content]";
+  }
+
+  return parts.join(" ").trim();
+}
+
+function formatTimestamp(createdAt: string | number | Date | undefined) {
+  if (!createdAt) return "";
+
+  const date = createdAt instanceof Date ? createdAt : new Date(createdAt);
+  if (Number.isNaN(date.getTime())) {
+    if (import.meta.env.DEV) {
+      console.warn("Invalid message createdAt timestamp", { createdAt });
+    }
+    return "";
+  }
+
+  return date.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 /**
- * DashboardBuilder Component
- * Main interface for AI-powered dashboard generation
- * Users describe dashboards in natural language, Tambo renders components
- */
+* DashboardBuilder Component
+* Main interface for AI-powered dashboard generation.
+*/
 export default function DashboardBuilder() {
-  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [dashboardComponents, setDashboardComponents] = useState<
-    React.ReactNode[]
-  >([]);
+  const [error, setError] = useState<string | null>(null);
+  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
 
-  // Example dashboard templates for demo
-  const dashboardTemplates = {
-    sales: [
-      <KPICard
-        key="kpi-1"
-        title="Total Revenue"
-        value="$487,000"
-        trend="+12.5%"
-        icon="DollarSign"
-        color="blue"
-      />,
-      <KPICard
-        key="kpi-2"
-        title="Active Users"
-        value="9,200"
-        trend="+18.3%"
-        icon="Users"
-        color="green"
-      />,
-      <LineChart
-        key="chart-1"
-        title="Monthly Revenue Trend"
-        data={salesData}
-        xAxis="month"
-        yAxis="revenue"
-        color="#4F46E5"
-      />,
-      <BarChart
-        key="chart-2"
-        title="Sales by Region"
-        data={regionSalesData}
-        xAxis="region"
-        yAxis="sales"
-        color="#06B6D4"
-      />,
-      <PieChart
-        key="chart-3"
-        title="Market Share"
-        data={marketShareData}
-      />,
-      <DataTable
-        key="table-1"
-        title="Top Customers"
-        columns={["Name", "Revenue", "Status", "Growth"]}
-        data={topCustomersData}
-      />,
-    ],
-    growth: [
-      <StatCard
-        key="stat-1"
-        label="User Growth"
-        value="9,200"
-        change="+18.3%"
-      />,
-      <StatCard
-        key="stat-2"
-        label="Conversion Rate"
-        value="3.8%"
-        change="+0.5%"
-      />,
-      <LineChart
-        key="chart-1"
-        title="User Growth Over Time"
-        data={userGrowthData}
-        xAxis="date"
-        yAxis="users"
-        color="#10B981"
-      />,
-      <TextBlock
-        key="text-1"
-        title="Key Insights"
-        content={insights.content}
-      />,
-    ],
-    correlation: [
-      <ScatterPlot
-        key="scatter-1"
-        title="Revenue vs Customer Count"
-        data={revenueVsCustomersData.map(d => ({ x: d.customers, y: d.revenue }))}
-        xLabel="Customers"
-        yLabel="Revenue"
-        color="#8B5CF6"
-      />,
-      <BarChart
-        key="chart-1"
-        title="Regional Performance"
-        data={regionSalesData}
-        xAxis="region"
-        yAxis="sales"
-        color="#F59E0B"
-      />,
-    ],
-  };
+  const {
+    thread,
+    sendThreadMessage,
+    startNewThread,
+    isIdle,
+    generationStatusMessage,
+  } = useTamboThread();
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim()) return;
 
-    // Add user message
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: "user",
-      content: input,
-      timestamp: new Date(),
-    };
+    const trimmed = input.trim();
+    if (!trimmed) return;
+    if (!isIdle) {
+      setError("Please wait for the current dashboard generation to finish.");
+      return;
+    }
 
-    setMessages((prev) => [...prev, userMessage]);
-    setInput("");
-    setIsLoading(true);
-
-    // Simulate AI processing and component selection
-    setTimeout(() => {
-      // Determine which dashboard to show based on keywords
-      let selectedDashboard: React.ReactNode[] = [];
-      const lowerInput = input.toLowerCase();
-
-      if (
-        lowerInput.includes("sales") ||
-        lowerInput.includes("revenue") ||
-        lowerInput.includes("region")
-      ) {
-        selectedDashboard = dashboardTemplates.sales;
-      } else if (
-        lowerInput.includes("growth") ||
-        lowerInput.includes("user") ||
-        lowerInput.includes("trend")
-      ) {
-        selectedDashboard = dashboardTemplates.growth;
-      } else if (
-        lowerInput.includes("correlation") ||
-        lowerInput.includes("scatter") ||
-        lowerInput.includes("relationship")
-      ) {
-        selectedDashboard = dashboardTemplates.correlation;
-      } else {
-        // Default to sales dashboard
-        selectedDashboard = dashboardTemplates.sales;
+    setError(null);
+    try {
+      await sendThreadMessage(trimmed);
+      setInput("");
+    } catch (err) {
+      if (import.meta.env.DEV) {
+        console.error("Failed to send Tambo message", err);
       }
+      const status = (err as any)?.status ?? (err as any)?.response?.status;
+      if (status === 401 || status === 403) {
+        setError(
+          "Your Tambo API key appears invalid or unauthorized. Please check VITE_TAMBO_API_KEY."
+        );
+      } else {
+        setError(
+          "Failed to send message. This may be a temporary issue with the Tambo service. Please try again."
+        );
+      }
+    }
+  };
 
-      setDashboardComponents(selectedDashboard);
-
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: `I've generated a dashboard with ${selectedDashboard.length} components based on your request. The dashboard includes charts, metrics, and data tables to help you visualize your data.`,
-        timestamp: new Date(),
-        components: selectedDashboard,
-      };
-
-      setMessages((prev) => [...prev, aiMessage]);
-      setIsLoading(false);
-    }, 1500);
+  const clearConversation = () => {
+    startNewThread();
+    setInput("");
+    setError(null);
   };
 
   const handleRefresh = () => {
-    setDashboardComponents([]);
-    setMessages([]);
+    if (!isIdle) return;
+    if (thread.messages.length === 0) {
+      clearConversation();
+      return;
+    }
+
+    setIsClearConfirmOpen(true);
   };
+
+  const messages = thread.messages;
+  const isLoading = !isIdle;
 
   return (
     <div className="flex flex-col h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      {/* Header */}
       <div className="border-b border-slate-200 bg-white shadow-sm sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
@@ -223,6 +172,7 @@ export default function DashboardBuilder() {
               variant="outline"
               size="sm"
               className="gap-2"
+              disabled={!isIdle}
             >
               <RefreshCw className="w-4 h-4" />
               Clear
@@ -231,7 +181,30 @@ export default function DashboardBuilder() {
         </div>
       </div>
 
-      {/* Main Content */}
+      <AlertDialog open={isClearConfirmOpen} onOpenChange={setIsClearConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear dashboard?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will clear the current conversation and start a new dashboard.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!isIdle}
+              onClick={() => {
+                if (!isIdle) return;
+                clearConversation();
+                setIsClearConfirmOpen(false);
+              }}
+            >
+              Clear
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-7xl mx-auto px-4 py-8">
           {messages.length === 0 ? (
@@ -251,77 +224,83 @@ export default function DashboardBuilder() {
                 <div className="space-y-2 text-sm text-slate-700">
                   <p className="font-semibold">Try asking for:</p>
                   <ul className="space-y-1">
-                    <li>
-                      📊 "Show me sales by region with revenue trends"
-                    </li>
+                    <li>📊 "Show me sales by region with revenue trends"</li>
                     <li>📈 "Create a user growth dashboard"</li>
-                    <li>
-                      🔗 "Analyze revenue vs customer correlation"
-                    </li>
+                    <li>🔗 "Analyze revenue vs customer correlation"</li>
                   </ul>
                 </div>
               </div>
             </motion.div>
           ) : (
             <div className="space-y-6">
-              {/* Messages */}
               <AnimatePresence>
-                {messages.map((message) => (
-                  <motion.div
-                    key={message.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                  >
-                    {message.role === "user" ? (
-                      <div className="flex justify-end mb-4">
-                        <div className="bg-indigo-600 text-white rounded-lg rounded-br-none px-4 py-3 max-w-md">
-                          <p className="text-sm">{message.content}</p>
-                          <span className="text-xs text-indigo-100 mt-2 block">
-                            {message.timestamp.toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </span>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        <div className="bg-white border-2 border-slate-200 rounded-lg rounded-bl-none px-4 py-3 max-w-2xl">
-                          <p className="text-sm text-slate-700">
-                            {message.content}
-                          </p>
-                          <span className="text-xs text-slate-500 mt-2 block">
-                            {message.timestamp.toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </span>
-                        </div>
+                {messages.map(message => {
+                  const text = contentToText(message.content);
+                  const timestamp = formatTimestamp(message.createdAt);
 
-                        {/* Rendered Components */}
-                        {message.components && message.components.length > 0 && (
-                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                            {message.components.map((component, idx) => (
-                              <motion.div
-                                key={idx}
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                transition={{ delay: idx * 0.1 }}
-                              >
-                                {component}
-                              </motion.div>
-                            ))}
+                  if (!text && !message.renderedComponent) {
+                    return (
+                      <motion.div
+                        key={message.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="text-xs text-slate-500 italic"
+                      >
+                        [This message contains content types the app doesn’t support
+                        yet.]
+                      </motion.div>
+                    );
+                  }
+
+                  return (
+                    <motion.div
+                      key={message.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                    >
+                      {message.role === "user" ? (
+                        <div className="flex justify-end mb-4">
+                          <div className="bg-indigo-600 text-white rounded-lg rounded-br-none px-4 py-3 max-w-md">
+                            <p className="text-sm">{text}</p>
+                            {timestamp ? (
+                              <span className="text-xs text-indigo-100 mt-2 block">
+                                {timestamp}
+                              </span>
+                            ) : null}
                           </div>
-                        )}
-                      </div>
-                    )}
-                  </motion.div>
-                ))}
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {text ? (
+                            <div className="bg-white border-2 border-slate-200 rounded-lg rounded-bl-none px-4 py-3 max-w-2xl">
+                              <p className="text-sm text-slate-700">{text}</p>
+                              {timestamp ? (
+                                <span className="text-xs text-slate-500 mt-2 block">
+                                  {timestamp}
+                                </span>
+                              ) : null}
+                            </div>
+                          ) : null}
+
+                          {message.renderedComponent ? (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.98 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              transition={{ duration: 0.2 }}
+                            >
+                              {message.renderedComponent}
+                            </motion.div>
+                          ) : null}
+                        </div>
+                      )}
+                    </motion.div>
+                  );
+                })}
               </AnimatePresence>
 
-              {/* Loading State */}
-              {isLoading && (
+              {isLoading ? (
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -331,31 +310,35 @@ export default function DashboardBuilder() {
                     <div className="flex items-center gap-2">
                       <Loader2 className="w-4 h-4 animate-spin text-cyan-500" />
                       <span className="text-sm text-slate-600">
-                        Generating dashboard...
+                        {generationStatusMessage || "Generating dashboard..."}
                       </span>
                     </div>
                   </div>
                 </motion.div>
-              )}
+              ) : null}
             </div>
           )}
         </div>
       </div>
 
-      {/* Input Area */}
       <div className="border-t border-slate-200 bg-white shadow-lg sticky bottom-0">
         <div className="max-w-7xl mx-auto px-4 py-4">
+          {error ? (
+            <div className="mb-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+              {error}
+            </div>
+          ) : null}
           <form onSubmit={handleSendMessage} className="flex gap-3">
             <Input
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={e => setInput(e.target.value)}
               placeholder="Describe your dashboard (e.g., 'Show me sales by region with revenue trends')..."
-              disabled={isLoading}
+              disabled={!isIdle}
               className="flex-1 bg-slate-50 border-slate-200 focus:bg-white transition-colors"
             />
             <Button
               type="submit"
-              disabled={isLoading || !input.trim()}
+              disabled={!isIdle || !input.trim()}
               className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
             >
               {isLoading ? (
@@ -367,8 +350,7 @@ export default function DashboardBuilder() {
             </Button>
           </form>
           <p className="text-xs text-slate-500 mt-2">
-            💡 Tip: Describe what data you want to see, and the AI will render
-            the right components
+            💡 Tip: Ask for goals, comparisons, and insights (not just charts)
           </p>
         </div>
       </div>

@@ -9,10 +9,11 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { motion } from "framer-motion";
+import { marketShareData } from "@/lib/mockData";
 
 interface PieChartProps {
   title: string;
-  data: Array<{ name: string; value: number }>;
+  data?: Array<{ name: string; value: number }>;
   height?: number;
 }
 
@@ -26,6 +27,15 @@ export default function PieChart({
   data,
   height = 300,
 }: PieChartProps) {
+  const finalData = data ?? marketShareData;
+  const isDemoFallback = typeof data === "undefined";
+
+  if (import.meta.env.DEV && isDemoFallback) {
+    console.warn("PieChart: using default marketShareData; no data prop provided", {
+      title,
+    });
+  }
+
   const COLORS = [
     "#4F46E5", // indigo
     "#06B6D4", // cyan
@@ -44,11 +54,18 @@ export default function PieChart({
       transition={{ duration: 0.3, delay: 0.2 }}
     >
       <Card className="p-6 border-2 border-slate-200 hover:shadow-lg transition-shadow">
-        <h3 className="text-lg font-bold text-slate-900 mb-4">{title}</h3>
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <h3 className="text-lg font-bold text-slate-900">{title}</h3>
+          {isDemoFallback ? (
+            <span className="text-xs px-2 py-1 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
+              Demo data
+            </span>
+          ) : null}
+        </div>
         <ResponsiveContainer width="100%" height={height}>
           <RechartsPieChart>
             <Pie
-              data={data}
+              data={finalData}
               cx="50%"
               cy="50%"
               labelLine={false}
@@ -58,7 +75,7 @@ export default function PieChart({
               dataKey="value"
               isAnimationActive={true}
             >
-              {data.map((entry, index) => (
+              {finalData.map((entry, index) => (
                 <Cell
                   key={`cell-${index}`}
                   fill={COLORS[index % COLORS.length]}
