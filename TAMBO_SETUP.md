@@ -31,6 +31,8 @@ cp .env.example .env.local
 
 Then update `.env.local` in the project root:
 
+> Note: `.env.local` is for your private keys and should not be committed to git.
+
 ```env
 VITE_TAMBO_API_KEY=your_actual_api_key_here
 ```

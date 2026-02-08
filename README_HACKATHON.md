@@ -202,6 +202,7 @@ pnpm dev
    ```
    cp .env.example .env.local
    ```
+   > Note: `.env.local` is for your private keys and should not be committed to git.
 3. Set your key in `.env.local`:
    ```
    VITE_TAMBO_API_KEY=your_api_key_here
