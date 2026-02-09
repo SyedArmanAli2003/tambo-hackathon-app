@@ -61,19 +61,25 @@ export default function PieChart({
   data,
   height = 300,
 }: PieChartProps) {
-  const isDemoFallback = !data || !Array.isArray(data) || data.length === 0;
-  const rawData = isDemoFallback ? marketShareData : data.filter(row => row != null && typeof row === "object");
-  const finalData = normalizePieData(rawData as any);
+  const hasProvidedData = data && Array.isArray(data) && data.length > 0;
+  const providedFiltered = hasProvidedData
+    ? data.filter(row => row != null && typeof row === "object")
+    : [];
+  
+  // Try to normalize provided data first; if it fails, fall back to demo
+  let isDemoFallback = !hasProvidedData || providedFiltered.length === 0;
+  let finalData: Array<{ name: string; value: number }>;
 
-  if (finalData.length === 0 && !isDemoFallback) {
-    return (
-      <Card className="p-6 border-2 border-slate-200">
-        <h3 className="text-lg font-bold text-slate-900">{title}</h3>
-        <div className="flex items-center justify-center text-xs text-slate-500" style={{ height }}>
-          No data available
-        </div>
-      </Card>
-    );
+  if (!isDemoFallback) {
+    const normalized = normalizePieData(providedFiltered as any);
+    if (normalized.length === 0) {
+      isDemoFallback = true;
+      finalData = normalizePieData(marketShareData as any);
+    } else {
+      finalData = normalized;
+    }
+  } else {
+    finalData = normalizePieData(marketShareData as any);
   }
 
   const COLORS = [

@@ -4,13 +4,14 @@ import DataUpload from "@/components/DataUpload";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, Loader2, Trash2, Sparkles, AlertTriangle } from "lucide-react";
 import { useTamboThread, useTamboThreadInput } from "@tambo-ai/react";
-import { useMemo, Component, type ReactNode } from "react";
+import { useMemo, useRef, Component, type ReactNode } from "react";
 import {
   analyzeDataset,
   buildAnalysisSummaryText,
   findRelevantAggregation,
   type DataSummary,
 } from "@/lib/dataAnalysis";
+import ExportButton from "@/components/ExportButton";
 
 /**
  * Inline error boundary that catches crashes in AI-rendered components
@@ -52,6 +53,7 @@ export default function DashboardBuilder() {
   const { activeDataset } = useData();
   const { thread, startNewThread, generationStage, generationStatusMessage } = useTamboThread();
   const { value, setValue, submit, isPending } = useTamboThreadInput();
+  const dashboardContentRef = useRef<HTMLDivElement>(null);
 
   const messages = thread?.messages ?? [];
   const isLoading = isPending || (generationStage !== "IDLE" && generationStage !== "COMPLETE" && generationStage !== "ERROR");
@@ -189,15 +191,21 @@ RULES:
           <div className="flex items-center gap-2">
             <DataUpload />
             {messages.length > 0 && (
-              <Button
-                onClick={handleClear}
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-2"
-              >
-                <Trash2 className="w-4 h-4" />
-                Clear
-              </Button>
+              <>
+                <ExportButton
+                  targetRef={dashboardContentRef}
+                  fileName={activeDataset ? `dashboard-${activeDataset.name}` : "dashboard"}
+                />
+                <Button
+                  onClick={handleClear}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Clear
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -248,7 +256,7 @@ RULES:
 
           {/* Chat Messages & Rendered Components */}
           {messages.length > 0 && (
-            <div className="space-y-6 mb-8">
+            <div ref={dashboardContentRef} className="space-y-6 mb-8">
               {messages.map((msg: any, idx: number) => {
                 const text = getMessageText(msg);
                 const isUser = msg.role === "user";

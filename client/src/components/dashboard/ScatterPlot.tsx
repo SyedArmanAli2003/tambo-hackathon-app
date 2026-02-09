@@ -80,21 +80,26 @@ export default function ScatterPlot({
   color = "#8B5CF6",
   height = 300,
 }: ScatterPlotProps) {
-  const isDemoFallback = !data || !Array.isArray(data) || data.length === 0;
-  const rawData = isDemoFallback
-    ? revenueVsCustomersData.map((d) => ({ x: d.customers, y: d.revenue }))
-    : data;
-  const finalData = normalizeScatterData(rawData);
+  const hasProvidedData = data && Array.isArray(data) && data.length > 0;
+  const providedFiltered = hasProvidedData
+    ? data.filter(row => row != null && typeof row === "object")
+    : [];
 
-  if (finalData.length === 0 && !isDemoFallback) {
-    return (
-      <Card className="p-6 border-2 border-slate-200">
-        <h3 className="text-lg font-bold text-slate-900">{title}</h3>
-        <div className="flex items-center justify-center text-xs text-slate-500" style={{ height }}>
-          No data available
-        </div>
-      </Card>
-    );
+  // Try to normalize provided data first; if it fails, fall back to demo
+  const demoData = revenueVsCustomersData.map((d) => ({ x: d.customers, y: d.revenue }));
+  let isDemoFallback = !hasProvidedData || providedFiltered.length === 0;
+  let finalData: ScatterPlotPoint[];
+
+  if (!isDemoFallback) {
+    const normalized = normalizeScatterData(providedFiltered);
+    if (normalized.length === 0) {
+      isDemoFallback = true;
+      finalData = normalizeScatterData(demoData);
+    } else {
+      finalData = normalized;
+    }
+  } else {
+    finalData = normalizeScatterData(demoData);
   }
 
   return (

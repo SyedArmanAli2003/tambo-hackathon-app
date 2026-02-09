@@ -35,37 +35,56 @@ export default function LineChart({
   color = "#4F46E5",
   height = 300,
 }: LineChartProps) {
-  // Safely determine if we should use demo data
-  const isDemoFallback = !data || !Array.isArray(data) || data.length === 0;
-  const rawData = isDemoFallback ? salesData : data.filter(row => row != null && typeof row === "object");
+  // Determine if provided data is usable
+  const hasProvidedData = data && Array.isArray(data) && data.length > 0;
+  const filteredProvided = hasProvidedData
+    ? data.filter(row => row != null && typeof row === "object" && Object.keys(row).length > 0)
+    : [];
 
-  if (rawData.length === 0) {
-    return (
-      <Card className="p-6 border-2 border-slate-200">
-        <h3 className="text-lg font-bold text-slate-900">{title}</h3>
-        <div className="flex items-center justify-center text-xs text-slate-500" style={{ height }}>
-          No data available
-        </div>
-      </Card>
-    );
+  // Helper to auto-detect keys from a dataset
+  const detectKeys = (rows: Record<string, any>[]) => {
+    const keys = Object.keys(rows[0] ?? {});
+    const findKey = (preferred: string, fallbackType: "string" | "number"): string => {
+      const exactMatch = keys.find(k => k.toLowerCase() === preferred.toLowerCase());
+      if (exactMatch) return exactMatch;
+      const sample = rows[0];
+      if (sample) {
+        const found = keys.find(k => {
+          const v = sample[k];
+          if (fallbackType === "number") return typeof v === "number" || (v != null && v !== "" && !isNaN(Number(v)));
+          return typeof v === "string" && isNaN(Number(v));
+        });
+        if (found) return found;
+      }
+      return preferred;
+    };
+    return { keys, findKey };
+  };
+
+  // Try to clean provided data first
+  let rawData: Record<string, any>[] = filteredProvided;
+  let isDemoFallback = !hasProvidedData || filteredProvided.length === 0;
+
+  if (!isDemoFallback) {
+    const { findKey } = detectKeys(filteredProvided);
+    const testYAxis = findKey(yAxis ?? "revenue", "number");
+    const cleaned = filteredProvided.filter(row => {
+      try {
+        const val = row?.[testYAxis];
+        const numVal = typeof val === "number" ? val : Number(val);
+        return !isNaN(numVal);
+      } catch { return false; }
+    });
+    if (cleaned.length === 0) {
+      isDemoFallback = true;
+      rawData = salesData;
+    }
+  } else {
+    rawData = salesData;
   }
 
-  // Auto-detect keys from data
-  const dataKeys = Object.keys(rawData[0] ?? {});
-  const findKey = (preferred: string, fallbackType: "string" | "number"): string => {
-    const exactMatch = dataKeys.find(k => k.toLowerCase() === preferred.toLowerCase());
-    if (exactMatch) return exactMatch;
-    const sample = rawData[0];
-    if (sample) {
-      const found = dataKeys.find(k => {
-        const v = sample[k];
-        if (fallbackType === "number") return typeof v === "number" || (v != null && v !== "" && !isNaN(Number(v)));
-        return typeof v === "string" && isNaN(Number(v));
-      });
-      if (found) return found;
-    }
-    return preferred;
-  };
+  // Auto-detect keys from whichever data we're using
+  const { keys: dataKeys, findKey } = detectKeys(rawData);
 
   const finalXAxis = findKey(xAxis ?? "month", "string");
   const finalYAxis = findKey(yAxis ?? "revenue", "number");
@@ -99,14 +118,7 @@ export default function LineChart({
             </span>
           ) : null}
         </div>
-        {cleanedData.length === 0 ? (
-          <div
-            className="flex items-center justify-center text-xs text-slate-500"
-            style={{ height }}
-          >
-            No numeric data available for <span className="font-mono ml-1">{finalYAxis}</span>.
-          </div>
-        ) : (
+        {cleanedData.length === 0 ? null : (
           <ResponsiveContainer width="100%" height={height}>
             <RechartsLineChart data={cleanedData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
