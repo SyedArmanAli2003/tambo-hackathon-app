@@ -180,14 +180,20 @@ RULES:
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex flex-col">
-      {/* Header */}
+    <div className="min-h-[calc(100vh-56px)] bg-gradient-to-br from-slate-50 to-slate-100 flex flex-col">
+      {/* Action Bar */}
       <div className="bg-white border-b border-slate-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">Dashboard Builder</h1>
-            <p className="text-sm text-slate-600">Powered by Tambo Generative UI</p>
-          </div>
+        <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
+          <p className="text-sm text-slate-600">
+            {activeDataset ? (
+              <span className="flex items-center gap-1">
+                <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
+                Dataset: <strong>{activeDataset.name}</strong> ({activeDataset.rowCount} rows, {activeDataset.columns.length} cols)
+              </span>
+            ) : (
+              <span className="text-slate-500">No dataset loaded — upload CSV/JSON to get started</span>
+            )}
+          </p>
           <div className="flex items-center gap-2">
             <DataUpload />
             {messages.length > 0 && (
@@ -364,14 +370,7 @@ RULES:
             </Button>
           </div>
           <p className="text-xs text-slate-500 mt-2">
-            {activeDataset ? (
-              <span className="flex items-center gap-1">
-                <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
-                Using dataset: <strong>{activeDataset.name}</strong> ({activeDataset.rowCount} rows, {activeDataset.columns.length} cols)
-              </span>
-            ) : (
-              <>💡 Tip: Upload your own CSV/JSON data, or describe what you want to see</>
-            )}
+            💡 Tip: Upload your data, then describe what you want to see
           </p>
         </div>
       </div>

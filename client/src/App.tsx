@@ -1,11 +1,13 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
+import Documentation from "@/pages/Documentation";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { DataProvider } from "./contexts/DataContext";
 import Home from "./pages/Home";
+import Navbar from "./components/Navbar";
 import { TamboProvider } from "@tambo-ai/react";
 import { tamboComponents } from "@/lib/tamboComponents";
 
@@ -13,6 +15,7 @@ function Router() {
   return (
     <Switch>
       <Route path={"/"} component={Home} />
+      <Route path={"/docs"} component={Documentation} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
@@ -40,6 +43,7 @@ function App() {
           {tamboApiKey ? (
             <TamboProvider apiKey={tamboApiKey} components={tamboComponents}>
               <DataProvider>
+                <Navbar />
                 <Router />
               </DataProvider>
             </TamboProvider>
