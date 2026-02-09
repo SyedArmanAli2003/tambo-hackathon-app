@@ -32,6 +32,37 @@ type ScatterPlotPoint = { x: number; y: number } & Record<
  * Displays correlation between two variables
  * Design: Clean scatter plot with grid and tooltip
  */
+/**
+ * Normalize scatter data: accepts [{x,y}] or any [{col1, col2}] format.
+ */
+function normalizeScatterData(data: any[]): ScatterPlotPoint[] {
+  if (!data || data.length === 0) return [];
+  const keys = Object.keys(data[0]);
+
+  // Already has x and y
+  if (keys.includes("x") && keys.includes("y")) {
+    return data.map(row => ({
+      x: typeof row.x === "number" ? row.x : Number(row.x) || 0,
+      y: typeof row.y === "number" ? row.y : Number(row.y) || 0,
+    }));
+  }
+
+  // Find two numeric columns
+  const numericKeys = keys.filter(k => {
+    const v = data[0][k];
+    return typeof v === "number" || (typeof v === "string" && !isNaN(Number(v)) && v !== "");
+  });
+
+  if (numericKeys.length >= 2) {
+    return data.map(row => ({
+      x: Number(row[numericKeys[0]]) || 0,
+      y: Number(row[numericKeys[1]]) || 0,
+    }));
+  }
+
+  return data as ScatterPlotPoint[];
+}
+
 export default function ScatterPlot({
   title,
   data,
@@ -40,16 +71,11 @@ export default function ScatterPlot({
   color = "#8B5CF6",
   height = 300,
 }: ScatterPlotProps) {
-  const finalData =
-    data ?? revenueVsCustomersData.map((d) => ({ x: d.customers, y: d.revenue }));
-  const isDemoFallback = typeof data === "undefined";
-
-  if (import.meta.env.DEV && isDemoFallback) {
-    console.warn(
-      "ScatterPlot: using default revenueVsCustomersData; no data prop provided",
-      { title }
-    );
-  }
+  const isDemoFallback = typeof data === "undefined" || !Array.isArray(data) || data.length === 0;
+  const rawData = isDemoFallback
+    ? revenueVsCustomersData.map((d) => ({ x: d.customers, y: d.revenue }))
+    : data;
+  const finalData = normalizeScatterData(rawData);
 
   return (
     <motion.div

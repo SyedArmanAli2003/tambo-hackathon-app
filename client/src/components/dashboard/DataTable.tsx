@@ -23,11 +23,12 @@ export default function DataTable({
   sortable = true,
 }: DataTableProps) {
   const demoColumns = ["Name", "Revenue", "Status", "Growth"];
-  const finalData = (data ?? topCustomersData) as Array<Record<string, any>>;
+  const rawData = (data ?? topCustomersData) as Array<Record<string, any>>;
+  const isDemoFallback = typeof data === "undefined" || !Array.isArray(data) || data.length === 0;
+  const finalData = isDemoFallback ? rawData : rawData;
   const inferredColumns =
     finalData.length > 0 ? Object.keys(finalData[0] ?? {}) : [];
   const finalColumns = columns ?? (inferredColumns.length ? inferredColumns : demoColumns);
-  const isDemoFallback = typeof data === "undefined";
 
   if (import.meta.env.DEV && isDemoFallback) {
     console.warn("DataTable: using default demo dataset", {

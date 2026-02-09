@@ -13,8 +13,31 @@ import { marketShareData } from "@/lib/mockData";
 
 interface PieChartProps {
   title: string;
-  data?: Array<{ name: string; value: number }>;
+  data?: Array<Record<string, any>>;
   height?: number;
+}
+
+/**
+ * Normalize any data format into {name, value} pairs for PieChart.
+ * Handles: [{name,value}], [{label,count}], [{Region, Revenue}], etc.
+ */
+function normalizePieData(data: Array<Record<string, any>>): Array<{ name: string; value: number }> {
+  if (!data || data.length === 0) return [];
+
+  // If already has name+value, just coerce types
+  const keys = Object.keys(data[0]);
+  const nameKey = keys.find(k => /^(name|label|category|group|segment)$/i.test(k)) ?? keys.find(k => typeof data[0][k] === "string" && isNaN(Number(data[0][k])));
+  const valueKey = keys.find(k => /^(value|count|total|amount|sum|revenue|sales|profit)$/i.test(k)) ?? keys.find(k => {
+    const v = data[0][k];
+    return typeof v === "number" || (typeof v === "string" && !isNaN(Number(v)) && v !== "");
+  });
+
+  if (!nameKey || !valueKey) return data as any;
+
+  return data.map(row => ({
+    name: String(row[nameKey] ?? "Unknown"),
+    value: typeof row[valueKey] === "number" ? row[valueKey] : Number(row[valueKey]) || 0,
+  })).filter(d => d.value > 0);
 }
 
 /**
@@ -27,14 +50,9 @@ export default function PieChart({
   data,
   height = 300,
 }: PieChartProps) {
-  const finalData = data ?? marketShareData;
-  const isDemoFallback = typeof data === "undefined";
-
-  if (import.meta.env.DEV && isDemoFallback) {
-    console.warn("PieChart: using default marketShareData; no data prop provided", {
-      title,
-    });
-  }
+  const isDemoFallback = typeof data === "undefined" || !Array.isArray(data) || data.length === 0;
+  const rawData = isDemoFallback ? marketShareData : data;
+  const finalData = normalizePieData(rawData as any);
 
   const COLORS = [
     "#4F46E5", // indigo
@@ -69,7 +87,11 @@ export default function PieChart({
               cx="50%"
               cy="50%"
               labelLine={false}
-              label={({ name, value }) => `${name}: ${value}%`}
+              label={({ name, value }) => {
+                const total = finalData.reduce((s, d) => s + d.value, 0);
+                const pct = total > 0 ? ((value / total) * 100).toFixed(1) : "0";
+                return `${name}: ${pct}%`;
+              }}
               outerRadius={80}
               fill="#8884d8"
               dataKey="value"

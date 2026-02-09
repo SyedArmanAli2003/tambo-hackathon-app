@@ -35,20 +35,38 @@ export default function LineChart({
   color = "#4F46E5",
   height = 300,
 }: LineChartProps) {
-  const finalData = data ?? salesData;
-  const finalXAxis = xAxis ?? "month";
-  const finalYAxis = yAxis ?? "revenue";
-  const isDemoFallback = typeof data === "undefined";
+  const isDemoFallback = typeof data === "undefined" || !Array.isArray(data) || data.length === 0;
+  const rawData = isDemoFallback ? salesData : data;
 
-  const cleanedData = finalData.filter(
-    (row) => typeof row?.[finalYAxis] === "number"
-  );
+  // Auto-detect keys from data if xAxis/yAxis don't match
+  const dataKeys = rawData.length > 0 ? Object.keys(rawData[0]) : [];
+  const findKey = (preferred: string, fallbackType: "string" | "number") => {
+    if (preferred && dataKeys.some(k => k.toLowerCase() === preferred.toLowerCase())) {
+      return dataKeys.find(k => k.toLowerCase() === preferred.toLowerCase())!;
+    }
+    if (rawData.length > 0) {
+      const sample = rawData[0];
+      return dataKeys.find(k => {
+        const v = sample[k];
+        if (fallbackType === "number") return typeof v === "number" || (!isNaN(Number(v)) && v !== "" && v !== null);
+        return typeof v === "string" && isNaN(Number(v));
+      }) ?? preferred;
+    }
+    return preferred;
+  };
 
-  if (import.meta.env.DEV && isDemoFallback) {
-    console.warn("LineChart: using default salesData; no data prop provided", {
-      title,
-    });
-  }
+  const finalXAxis = findKey(xAxis ?? "month", "string");
+  const finalYAxis = findKey(yAxis ?? "revenue", "number");
+
+  // Coerce string numbers to actual numbers and filter valid rows
+  const cleanedData = rawData
+    .map((row) => {
+      const val = row[finalYAxis];
+      const numVal = typeof val === "number" ? val : Number(val);
+      if (isNaN(numVal)) return null;
+      return { ...row, [finalYAxis]: numVal };
+    })
+    .filter(Boolean) as Record<string, any>[];
 
   return (
     <motion.div

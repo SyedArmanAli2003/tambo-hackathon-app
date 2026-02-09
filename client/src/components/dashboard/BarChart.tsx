@@ -35,36 +35,39 @@ export default function BarChart({
   color = "#06B6D4",
   height = 300,
 }: BarChartProps) {
-  const finalData = data ?? regionSalesData;
-  const finalXAxis = xAxis ?? "region";
-  const finalYAxis = yAxis ?? "sales";
-  const isDemoFallback = typeof data === "undefined";
+  const isDemoFallback = typeof data === "undefined" || !Array.isArray(data) || data.length === 0;
+  const rawData = isDemoFallback ? regionSalesData : data;
 
-  const cleanedData = finalData.filter(
-    (row) => typeof row?.[finalYAxis] === "number"
-  );
-
-  if (import.meta.env.DEV && isDemoFallback) {
-    console.warn("BarChart: using default regionSalesData; no data prop provided", {
-      title,
-    });
-  }
-
-  if (import.meta.env.DEV && Array.isArray(data)) {
-    if (data.length === 0) {
-      console.warn("BarChart: received empty data array", { title });
-    } else {
-      const sampleKeys = Object.keys(data[0] ?? {});
-      if (!sampleKeys.includes(finalXAxis) || !sampleKeys.includes(finalYAxis)) {
-        console.warn("BarChart: xAxis/yAxis do not match data keys", {
-          title,
-          xAxis: finalXAxis,
-          yAxis: finalYAxis,
-          sampleKeys,
-        });
-      }
+  // Auto-detect keys from data if xAxis/yAxis don't match
+  const dataKeys = rawData.length > 0 ? Object.keys(rawData[0]) : [];
+  const findKey = (preferred: string, fallbackType: "string" | "number") => {
+    if (preferred && dataKeys.some(k => k.toLowerCase() === preferred.toLowerCase())) {
+      return dataKeys.find(k => k.toLowerCase() === preferred.toLowerCase())!;
     }
-  }
+    // Fallback: find first key of the right type
+    if (rawData.length > 0) {
+      const sample = rawData[0];
+      return dataKeys.find(k => {
+        const v = sample[k];
+        if (fallbackType === "number") return typeof v === "number" || (!isNaN(Number(v)) && v !== "" && v !== null);
+        return typeof v === "string" && isNaN(Number(v));
+      }) ?? preferred;
+    }
+    return preferred;
+  };
+
+  const finalXAxis = findKey(xAxis ?? "region", "string");
+  const finalYAxis = findKey(yAxis ?? "sales", "number");
+
+  // Coerce string numbers to actual numbers and filter valid rows
+  const cleanedData = rawData
+    .map((row) => {
+      const val = row[finalYAxis];
+      const numVal = typeof val === "number" ? val : Number(val);
+      if (isNaN(numVal)) return null;
+      return { ...row, [finalYAxis]: numVal };
+    })
+    .filter(Boolean) as Record<string, any>[];
 
   return (
     <motion.div

@@ -1,0 +1,51 @@
+Customer_ID,Customer_Name,Industry,Company_Size,Region,Country,Account_Manager,Subscription_Plan,Monthly_Revenue,Annual_Contract_Value,Lifetime_Revenue,Months_Active,Support_Tickets,NPS_Score,Churn_Risk,Upsell_Revenue,Discount_Given,Payment_Method,Acquisition_Channel,Customer_Since
+CUST001,Acme Corp,Technology,Enterprise,North America,United States,Sarah Chen,Premium,18500,222000,1554000,84,12,9,Low,45000,5,Credit Card,Referral,2019-03-15
+CUST002,GlobalTech Inc,Technology,Mid-Market,Europe,Germany,Hans Mueller,Standard,8200,98400,590400,72,28,7,Medium,12000,10,Wire Transfer,Paid Search,2020-01-10
+CUST003,MediHealth Systems,Healthcare,Enterprise,North America,United States,Sarah Chen,Premium,22000,264000,1584000,72,8,10,Low,55000,3,Credit Card,Direct Sales,2020-01-22
+CUST004,RetailMax,Retail,Small Business,North America,Canada,Bob Smith,Basic,3200,38400,230400,72,45,5,High,0,15,Credit Card,Organic Search,2020-02-14
+CUST005,FinServe Global,Financial Services,Enterprise,Europe,United Kingdom,Marie Dupont,Premium,28500,342000,2394000,84,6,9,Low,72000,2,Wire Transfer,Direct Sales,2019-06-01
+CUST006,EduLearn Platform,Education,Mid-Market,Asia Pacific,Australia,Wei Zhang,Standard,6800,81600,489600,72,22,6,Medium,8500,12,Credit Card,Content Marketing,2020-03-18
+CUST007,AutoDrive Motors,Automotive,Enterprise,North America,United States,Sarah Chen,Premium,32000,384000,2304000,72,10,8,Low,68000,5,Wire Transfer,Referral,2020-04-05
+CUST008,CloudNine SaaS,Technology,Small Business,North America,United States,Bob Smith,Basic,2800,33600,168000,60,52,4,High,0,20,Credit Card,Paid Search,2021-02-12
+CUST009,PharmaCure Labs,Healthcare,Enterprise,Europe,Switzerland,Hans Mueller,Premium,25000,300000,1800000,72,9,9,Low,60000,3,Wire Transfer,Direct Sales,2020-05-20
+CUST010,ShopEasy Online,Retail,Mid-Market,Asia Pacific,Japan,Wei Zhang,Standard,9500,114000,684000,72,30,6,Medium,15000,8,Credit Card,Organic Search,2020-06-10
+CUST011,BankSecure Ltd,Financial Services,Enterprise,North America,United States,Sarah Chen,Premium,35000,420000,2940000,84,5,10,Low,85000,2,Wire Transfer,Direct Sales,2019-04-22
+CUST012,GreenEnergy Co,Energy,Mid-Market,Europe,Netherlands,Marie Dupont,Standard,7500,90000,540000,72,18,7,Medium,10000,10,Wire Transfer,Content Marketing,2020-07-15
+CUST013,FastLogistics,Transportation,Small Business,North America,United States,Bob Smith,Basic,4100,49200,295200,72,38,5,High,2000,15,Credit Card,Paid Search,2020-08-01
+CUST014,DataMind AI,Technology,Mid-Market,North America,United States,Sarah Chen,Standard,11200,134400,806400,72,15,8,Low,22000,7,Credit Card,Referral,2020-09-12
+CUST015,ConstructBuild,Construction,Small Business,Europe,United Kingdom,Marie Dupont,Basic,3800,45600,273600,72,42,4,High,0,18,Credit Card,Organic Search,2020-10-05
+CUST016,TeleConnect,Telecommunications,Enterprise,Asia Pacific,Singapore,Wei Zhang,Premium,19500,234000,1404000,72,11,8,Low,42000,5,Wire Transfer,Direct Sales,2020-11-18
+CUST017,FoodChain Global,Food & Beverage,Mid-Market,North America,United States,Bob Smith,Standard,7200,86400,518400,72,25,6,Medium,9000,12,Credit Card,Content Marketing,2020-12-01
+CUST018,LegalEagle LLP,Legal,Small Business,North America,United States,Sarah Chen,Basic,5200,62400,374400,72,15,7,Low,5000,8,Credit Card,Referral,2021-01-14
+CUST019,AeroSpace Dynamics,Aerospace,Enterprise,Europe,France,Marie Dupont,Premium,42000,504000,3024000,72,7,9,Low,95000,2,Wire Transfer,Direct Sales,2020-06-22
+CUST020,MediaBuzz,Media,Mid-Market,North America,United States,Bob Smith,Standard,8800,105600,633600,72,20,7,Medium,14000,10,Credit Card,Paid Search,2021-02-28
+CUST021,InsureSafe,Financial Services,Enterprise,North America,United States,Sarah Chen,Premium,31000,372000,2232000,72,8,9,Low,78000,3,Wire Transfer,Direct Sales,2020-08-15
+CUST022,BioGenetics Lab,Healthcare,Mid-Market,Europe,Germany,Hans Mueller,Standard,12500,150000,900000,72,14,8,Low,25000,6,Wire Transfer,Content Marketing,2020-09-30
+CUST023,QuickDeliver,Transportation,Small Business,Asia Pacific,India,Wei Zhang,Basic,2200,26400,158400,72,55,3,High,0,22,Credit Card,Organic Search,2020-10-20
+CUST024,SmartHome IoT,Technology,Mid-Market,North America,Canada,Bob Smith,Standard,9800,117600,705600,72,16,7,Medium,18000,8,Credit Card,Referral,2020-11-05
+CUST025,PetroGas Energy,Energy,Enterprise,Europe,Norway,Marie Dupont,Premium,38000,456000,2736000,72,6,10,Low,90000,2,Wire Transfer,Direct Sales,2020-12-12
+CUST026,EduTech Academy,Education,Small Business,North America,United States,Sarah Chen,Basic,3500,42000,252000,72,35,5,High,1500,15,Credit Card,Organic Search,2021-01-28
+CUST027,RealEstate Pro,Real Estate,Mid-Market,North America,United States,Bob Smith,Standard,8100,97200,583200,72,19,6,Medium,11000,10,Credit Card,Paid Search,2021-03-15
+CUST028,CyberShield,Technology,Enterprise,North America,United States,Sarah Chen,Premium,26000,312000,1872000,72,9,9,Low,62000,4,Wire Transfer,Direct Sales,2020-04-18
+CUST029,AgriTech Farms,Agriculture,Small Business,Asia Pacific,Australia,Wei Zhang,Basic,2900,34800,208800,72,40,4,High,0,18,Credit Card,Content Marketing,2021-04-02
+CUST030,TravelGo,Travel & Hospitality,Mid-Market,Europe,Spain,Marie Dupont,Standard,7800,93600,561600,72,23,6,Medium,9500,11,Credit Card,Paid Search,2021-05-10
+CUST031,NanoTech Solutions,Technology,Enterprise,North America,United States,Sarah Chen,Premium,29000,348000,2088000,72,7,9,Low,70000,3,Wire Transfer,Referral,2020-07-25
+CUST032,UrbanDev Corp,Real Estate,Enterprise,Asia Pacific,China,Wei Zhang,Premium,21000,252000,1512000,72,12,8,Low,48000,5,Wire Transfer,Direct Sales,2020-08-30
+CUST033,StyleFashion,Retail,Small Business,Europe,Italy,Hans Mueller,Basic,3600,43200,259200,72,48,4,High,0,20,Credit Card,Organic Search,2021-06-14
+CUST034,GameStudio X,Entertainment,Mid-Market,North America,United States,Bob Smith,Standard,10500,126000,756000,72,17,7,Medium,20000,9,Credit Card,Referral,2021-07-01
+CUST035,ChemWorks Intl,Manufacturing,Enterprise,Europe,Germany,Hans Mueller,Premium,24000,288000,1728000,72,10,8,Low,55000,4,Wire Transfer,Direct Sales,2020-09-22
+CUST036,FitLife Wellness,Healthcare,Small Business,North America,United States,Bob Smith,Basic,4500,54000,324000,72,30,5,Medium,3000,12,Credit Card,Content Marketing,2021-08-15
+CUST037,SolarPower Inc,Energy,Mid-Market,North America,Canada,Sarah Chen,Standard,11800,141600,849600,72,13,8,Low,24000,6,Credit Card,Referral,2021-09-01
+CUST038,MarineTech,Transportation,Enterprise,Asia Pacific,South Korea,Wei Zhang,Premium,17500,210000,1260000,72,14,7,Medium,35000,7,Wire Transfer,Direct Sales,2021-10-10
+CUST039,PublishPro Media,Media,Small Business,Europe,United Kingdom,Marie Dupont,Basic,3100,37200,223200,72,36,5,High,0,16,Credit Card,Organic Search,2021-11-18
+CUST040,VetCare Plus,Healthcare,Mid-Market,North America,United States,Sarah Chen,Standard,8900,106800,640800,72,21,7,Medium,13000,9,Credit Card,Paid Search,2021-12-05
+CUST041,RoboWorks,Technology,Enterprise,North America,United States,Sarah Chen,Premium,33000,396000,2376000,72,8,9,Low,80000,3,Wire Transfer,Direct Sales,2020-02-28
+CUST042,LuxuryStays Hotels,Travel & Hospitality,Enterprise,Europe,France,Marie Dupont,Premium,20000,240000,1440000,72,11,8,Low,45000,5,Wire Transfer,Referral,2021-01-10
+CUST043,PackageRight,Transportation,Mid-Market,North America,United States,Bob Smith,Standard,7600,91200,547200,72,24,6,Medium,8000,11,Credit Card,Organic Search,2021-02-22
+CUST044,MegaRetail,Retail,Enterprise,Asia Pacific,Japan,Wei Zhang,Premium,16000,192000,1152000,72,13,8,Low,38000,6,Wire Transfer,Direct Sales,2021-03-30
+CUST045,SecureVault,Financial Services,Mid-Market,North America,United States,Sarah Chen,Standard,13500,162000,972000,72,10,8,Low,28000,5,Credit Card,Referral,2021-04-15
+CUST046,GreenBuild Const,Construction,Mid-Market,Europe,Sweden,Hans Mueller,Standard,9200,110400,662400,72,17,7,Medium,16000,8,Wire Transfer,Content Marketing,2021-05-28
+CUST047,ByteCloud,Technology,Small Business,North America,United States,Bob Smith,Basic,4800,57600,345600,72,32,5,Medium,4000,14,Credit Card,Paid Search,2021-06-30
+CUST048,FreshFarms,Agriculture,Mid-Market,North America,Canada,Sarah Chen,Standard,6500,78000,468000,72,26,6,Medium,7000,12,Credit Card,Content Marketing,2021-07-22
+CUST049,AirConnect,Telecommunications,Mid-Market,Asia Pacific,India,Wei Zhang,Standard,8400,100800,604800,72,22,6,Medium,12000,10,Credit Card,Organic Search,2021-08-18
+CUST050,TopTalent HR,Technology,Enterprise,Europe,United Kingdom,Marie Dupont,Premium,23000,276000,1656000,72,9,9,Low,52000,4,Wire Transfer,Direct Sales,2021-09-25
