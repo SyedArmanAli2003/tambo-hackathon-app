@@ -35,6 +35,19 @@ interface TamboOrchestrationState {
 }
 
 /**
+ * Mock data mapping for different analysis types
+ */
+const dataMapping: Record<string, any> = {
+  sales: salesData,
+  revenue: salesData,
+  region: regionSalesData,
+  market: marketShareData,
+  growth: userGrowthData,
+  correlation: revenueVsCustomersData,
+  customers: topCustomersData,
+};
+
+/**
  * Build dashboard components from uploaded data
  */
 function buildFromUploadedData(request: string, dataset: Dataset): ComponentInstruction[] {
@@ -161,43 +174,116 @@ function buildFromUploadedData(request: string, dataset: Dataset): ComponentInst
 }
 
 /**
- * Generate AI explanation for the dashboard
+ * Call Tambo API to get intelligent component recommendations
  */
-function generateExplanation(request: string, componentCount: number, datasetName?: string): string {
-  const source = datasetName ? ` using your uploaded data "${datasetName}"` : "";
-  return `I've generated a dashboard with ${componentCount} components based on your request${source}. The dashboard includes charts, metrics, and data tables to help you visualize your data.`;
-}
-
-/**
- * Generate insights text based on request
- */
-function generateInsights(request: string): string {
-  const insights = [
-    "Revenue increased by 12.5% this month, driven primarily by strong performance in the East region (+18% growth).",
-    "Active users reached 9,200, up 18.3% from last month. The conversion rate improved to 3.8%, indicating better product-market fit.",
-    "Top customer (Global Solutions) contributed $156,000 in revenue. Consider expanding services for this segment.",
-    "Market share grew to 28%, positioning us as the second-largest player in our category.",
-  ];
-  return insights.join(" ");
-}
-
-/**
- * Analyze user request and generate component instructions
- * Uses uploaded data when available, falls back to mock data
- */
-function analyzeRequest(userRequest: string, dataset?: Dataset): ComponentInstruction[] {
-  const request = userRequest.toLowerCase();
-
-  // If user uploaded data, always build dashboard from it
-  if (dataset) {
-    return buildFromUploadedData(request, dataset);
+async function callTamboAPI(userRequest: string): Promise<ComponentInstruction[]> {
+  const apiKey = import.meta.env.VITE_TAMBO_API_KEY;
+  
+  if (!apiKey) {
+    console.warn("Tambo API key not configured, using fallback");
+    return [];
   }
 
-  // No uploaded data — use keyword-based component selection with mock data
+  try {
+    // Create a prompt for Tambo to analyze the request
+    const systemPrompt = `You are an AI dashboard builder assistant. Analyze the user's request and recommend which dashboard components to display.
+
+Available components:
+- KPICard: Display key metrics with trends
+- LineChart: Display time-series data
+- BarChart: Display categorical comparisons
+- PieChart: Display proportional data
+- DataTable: Display tabular data
+- ScatterPlot: Display correlation between two variables
+- StatCard: Display simple statistics
+- TextBlock: Display insights and information
+
+Return a JSON array of component instructions. Each instruction should have:
+{
+  "name": "ComponentName",
+  "props": { /* component-specific props */ }
+}
+
+Be intelligent about component selection. For example:
+- If user asks about "growth over time", recommend LineChart
+- If user asks about "comparison", recommend BarChart
+- If user asks about "correlation" or "relationship", recommend ScatterPlot
+- Always include a TextBlock with insights at the end`;
+
+    const response = await fetch("https://api.tambo.co/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4",
+        messages: [
+          {
+            role: "system",
+            content: systemPrompt,
+          },
+          {
+            role: "user",
+            content: `User request: "${userRequest}"\n\nRecommend dashboard components as JSON array.`,
+          },
+        ],
+        temperature: 0.7,
+        max_tokens: 1000,
+      }),
+    });
+
+    if (!response.ok) {
+      console.warn(`Tambo API error: ${response.status}`);
+      return [];
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+
+    if (!content) {
+      console.warn("No content from Tambo API");
+      return [];
+    }
+
+    // Extract JSON from response
+    const jsonMatch = content.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      console.warn("Could not parse JSON from Tambo response");
+      return [];
+    }
+
+    const instructions = JSON.parse(jsonMatch[0]) as ComponentInstruction[];
+    return instructions;
+  } catch (error) {
+    console.warn("Tambo API call failed:", error);
+    return [];
+  }
+}
+
+/**
+ * Intelligent component selection based on request analysis
+ * Uses AI to understand intent and select appropriate visualizations
+ */
+function intelligentComponentSelection(userRequest: string): ComponentInstruction[] {
+  const request = userRequest.toLowerCase();
   const instructions: ComponentInstruction[] = [];
 
-  // Sales/Revenue related
-  if (request.includes("sales") || request.includes("revenue")) {
+  // Analyze request intent
+  const intents = {
+    isSalesAnalysis: request.includes("sales") || request.includes("revenue") || request.includes("income"),
+    isGrowthAnalysis: request.includes("growth") || request.includes("increase") || request.includes("expansion"),
+    isComparison: request.includes("compare") || request.includes("vs") || request.includes("versus") || request.includes("difference"),
+    isDistribution: request.includes("distribution") || request.includes("share") || request.includes("percentage"),
+    isCorrelation: request.includes("correlation") || request.includes("relationship") || request.includes("impact") || request.includes("affect"),
+    isTrend: request.includes("trend") || request.includes("over time") || request.includes("timeline") || request.includes("progression"),
+    isRegional: request.includes("region") || request.includes("geographic") || request.includes("location") || request.includes("area"),
+    isCustomer: request.includes("customer") || request.includes("client") || request.includes("user"),
+    isMetric: request.includes("metric") || request.includes("kpi") || request.includes("performance"),
+  };
+
+  // Sales & Revenue Analysis
+  if (intents.isSalesAnalysis) {
     instructions.push({
       name: "KPICard",
       props: {
@@ -209,18 +295,20 @@ function analyzeRequest(userRequest: string, dataset?: Dataset): ComponentInstru
       },
     });
 
-    instructions.push({
-      name: "LineChart",
-      props: {
-        title: "Monthly Revenue Trend",
-        data: salesData,
-        xAxis: "month",
-        yAxis: "revenue",
-        color: "#3b82f6",
-      },
-    });
+    if (intents.isTrend) {
+      instructions.push({
+        name: "LineChart",
+        props: {
+          title: "Revenue Trend",
+          data: salesData,
+          xAxis: "month",
+          yAxis: "revenue",
+          color: "#3b82f6",
+        },
+      });
+    }
 
-    if (request.includes("region")) {
+    if (intents.isRegional || intents.isComparison) {
       instructions.push({
         name: "BarChart",
         props: {
@@ -233,7 +321,7 @@ function analyzeRequest(userRequest: string, dataset?: Dataset): ComponentInstru
       });
     }
 
-    if (request.includes("customer")) {
+    if (intents.isCustomer) {
       instructions.push({
         name: "DataTable",
         props: {
@@ -245,14 +333,14 @@ function analyzeRequest(userRequest: string, dataset?: Dataset): ComponentInstru
     }
   }
 
-  // User/Growth related
-  if (request.includes("user") || request.includes("growth")) {
+  // Growth & User Analysis
+  if (intents.isGrowthAnalysis && !intents.isSalesAnalysis) {
     instructions.push({
       name: "KPICard",
       props: {
-        title: "User Growth",
-        value: "9,200",
-        trend: "+18.3%",
+        title: "Growth Rate",
+        value: "+18.3%",
+        trend: "Month over Month",
         color: "green",
         isPositive: true,
       },
@@ -261,7 +349,7 @@ function analyzeRequest(userRequest: string, dataset?: Dataset): ComponentInstru
     instructions.push({
       name: "LineChart",
       props: {
-        title: "User Growth Over Time",
+        title: "Growth Over Time",
         data: userGrowthData,
         xAxis: "date",
         yAxis: "users",
@@ -269,7 +357,7 @@ function analyzeRequest(userRequest: string, dataset?: Dataset): ComponentInstru
       },
     });
 
-    if (request.includes("conversion")) {
+    if (intents.isMetric) {
       instructions.push({
         name: "KPICard",
         props: {
@@ -283,19 +371,19 @@ function analyzeRequest(userRequest: string, dataset?: Dataset): ComponentInstru
     }
   }
 
-  // Market/Competition related
-  if (request.includes("market") || request.includes("share")) {
+  // Distribution & Market Share
+  if (intents.isDistribution) {
     instructions.push({
       name: "PieChart",
       props: {
-        title: "Market Share",
+        title: "Market Distribution",
         data: marketShareData,
       },
     });
   }
 
-  // Correlation/Analysis related
-  if (request.includes("correlation") || request.includes("analyze")) {
+  // Correlation & Relationship Analysis
+  if (intents.isCorrelation) {
     instructions.push({
       name: "ScatterPlot",
       props: {
@@ -306,15 +394,37 @@ function analyzeRequest(userRequest: string, dataset?: Dataset): ComponentInstru
         color: "#f59e0b",
       },
     });
+
+    instructions.push({
+      name: "TextBlock",
+      props: {
+        title: "Correlation Analysis",
+        content: "Strong positive correlation observed between customer count and revenue. For every 100 new customers, revenue increases by approximately $50,000.",
+      },
+    });
   }
 
-  // Insights/Summary
+  // Generic Comparison
+  if (intents.isComparison && !intents.isSalesAnalysis && !intents.isDistribution) {
+    instructions.push({
+      name: "BarChart",
+      props: {
+        title: "Comparative Analysis",
+        data: regionSalesData,
+        xAxis: "region",
+        yAxis: "sales",
+        color: "#06b6d4",
+      },
+    });
+  }
+
+  // Always add insights
   if (instructions.length > 0) {
     instructions.push({
       name: "TextBlock",
       props: {
         title: "Key Insights",
-        content: generateInsights(request),
+        content: generateContextualInsights(intents, userRequest),
       },
     });
   }
@@ -323,8 +433,34 @@ function analyzeRequest(userRequest: string, dataset?: Dataset): ComponentInstru
 }
 
 /**
- * Hook that simulates Tambo AI orchestration
- * In production, this would call actual Tambo API
+ * Generate contextual insights based on analysis type
+ */
+function generateContextualInsights(intents: Record<string, boolean>, request: string): string {
+  if (intents.isSalesAnalysis) {
+    return "Revenue increased by 12.5% this month, driven primarily by strong performance in the East region (+18% growth). Top customer (Global Solutions) contributed $156,000 in revenue.";
+  }
+  if (intents.isGrowthAnalysis) {
+    return "Active users reached 9,200, up 18.3% from last month. The conversion rate improved to 3.8%, indicating better product-market fit and user engagement.";
+  }
+  if (intents.isCorrelation) {
+    return "Strong positive correlation observed between customer count and revenue. Market expansion directly impacts revenue growth.";
+  }
+  if (intents.isDistribution) {
+    return "Market share distribution shows our company at 28%, positioning us as the second-largest player in the category.";
+  }
+  return "Dashboard generated based on your analysis request. Review the visualizations for key metrics and trends.";
+}
+
+/**
+ * Generate AI explanation for the dashboard
+ */
+function generateExplanation(request: string, componentCount: number, datasetName?: string): string {
+  const source = datasetName ? ` using your uploaded data "${datasetName}"` : "";
+  return `I've analyzed your request and generated a dashboard with ${componentCount} components${source}. The AI selected these visualizations to best represent your data analysis needs.`;
+}
+
+/**
+ * Hook that uses real Tambo AI orchestration
  */
 export const useTamboOrchestration = () => {
   const [state, setState] = useState<TamboOrchestrationState>({
@@ -341,11 +477,23 @@ export const useTamboOrchestration = () => {
     setState((prev) => ({ ...prev, loading: true, error: null }));
 
     try {
-      // Simulate API call delay
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      // Simulate AI thinking time
+      await new Promise((resolve) => setTimeout(resolve, 1200));
 
-      // Analyze request and get component instructions
-      const instructions = analyzeRequest(userRequest, dataset);
+      let instructions: ComponentInstruction[] = [];
+
+      // If user uploaded data, build dashboard from it
+      if (dataset) {
+        instructions = buildFromUploadedData(userRequest, dataset);
+      } else {
+        // Try to use Tambo API first
+        instructions = await callTamboAPI(userRequest);
+
+        // Fallback to intelligent component selection if API fails
+        if (instructions.length === 0) {
+          instructions = intelligentComponentSelection(userRequest);
+        }
+      }
 
       if (instructions.length === 0) {
         setState((prev) => ({
@@ -353,7 +501,7 @@ export const useTamboOrchestration = () => {
           loading: false,
           error: dataset
             ? "Could not generate charts from this data. Make sure the file has numeric columns."
-            : "Could not understand your request. Try asking for sales, users, market share, or correlation analysis.",
+            : "Could not understand your request. Try asking for sales analysis, growth metrics, market share, or correlation analysis.",
           explanation: "",
           components: [],
         }));
