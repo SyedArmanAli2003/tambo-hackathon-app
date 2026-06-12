@@ -198,11 +198,16 @@ pnpm dev
 
 ### Adding Your Tambo API Key
 1. Get your API key from https://dashboard.tambo.co/
-2. Update `.env.local`:
+2. Copy `.env.example` to `.env.local` and update it:
+   ```
+   cp .env.example .env.local
+   ```
+   > Note: `.env.local` is for your private keys and should not be committed to git.
+3. Set your key in `.env.local`:
    ```
    VITE_TAMBO_API_KEY=your_api_key_here
    ```
-3. Restart the dev server
+4. Restart the dev server
 
 ### Extending the App
 1. Create new components in `client/src/components/dashboard/`
