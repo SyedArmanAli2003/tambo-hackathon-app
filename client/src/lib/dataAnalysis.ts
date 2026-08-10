@@ -41,7 +41,7 @@ export interface AggregationResult {
   groupBy: string;
   metric: string;
   operation: string;
-  data: Record<string, any>[];
+  data: Record<string, string | number>[];
 }
 
 export interface CorrelationResult {
@@ -55,12 +55,15 @@ export interface CorrelationResult {
  * Compute detailed statistics for a single numeric column.
  */
 function computeNumericStats(
-  data: Record<string, any>[],
+  data: Record<string, unknown>[],
   column: string
 ): Partial<ColumnStats> {
   const values = data
-    .map((row) => row[column])
-    .filter((v) => typeof v === "number" && !isNaN(v));
+    .map(row => row[column])
+    .filter(
+      (value): value is number =>
+        typeof value === "number" && Number.isFinite(value)
+    );
 
   if (values.length === 0) return {};
 
@@ -89,7 +92,7 @@ function computeNumericStats(
  * Compute top unique values for a categorical column.
  */
 function computeCategoricalStats(
-  data: Record<string, any>[],
+  data: Record<string, unknown>[],
   column: string
 ): { value: string; count: number }[] {
   const counts = new Map<string, number>();
@@ -107,11 +110,11 @@ function computeCategoricalStats(
  * Aggregate a numeric column grouped by a categorical column.
  */
 function aggregateByGroup(
-  data: Record<string, any>[],
+  data: Record<string, unknown>[],
   groupCol: string,
   valueCol: string,
   operation: "sum" | "mean" | "count"
-): Record<string, any>[] {
+): Record<string, string | number>[] {
   const groups = new Map<string, number[]>();
 
   for (const row of data) {
@@ -129,7 +132,10 @@ function aggregateByGroup(
       if (operation === "sum") {
         result = values.reduce((s, v) => s + v, 0);
       } else if (operation === "mean") {
-        result = values.length > 0 ? values.reduce((s, v) => s + v, 0) / values.length : 0;
+        result =
+          values.length > 0
+            ? values.reduce((s, v) => s + v, 0) / values.length
+            : 0;
       } else {
         result = values.length;
       }
@@ -168,20 +174,20 @@ function pearsonCorrelation(x: number[], y: number[]): number {
  * Analyze a dataset and produce a full summary that the AI can use.
  */
 export function analyzeDataset(
-  data: Record<string, any>[],
+  data: Record<string, unknown>[],
   columns: string[],
   columnTypes: Record<string, "string" | "number" | "date">
 ): DataSummary {
-  const numericColumns = columns.filter((c) => columnTypes[c] === "number");
-  const categoricalColumns = columns.filter((c) => columnTypes[c] === "string");
-  const dateColumns = columns.filter((c) => columnTypes[c] === "date");
+  const numericColumns = columns.filter(c => columnTypes[c] === "number");
+  const categoricalColumns = columns.filter(c => columnTypes[c] === "string");
+  const dateColumns = columns.filter(c => columnTypes[c] === "date");
 
   // Column-level statistics
-  const columnStats: ColumnStats[] = columns.map((col) => {
+  const columnStats: ColumnStats[] = columns.map(col => {
     const type = columnTypes[col] || "string";
-    const uniqueValues = new Set(data.map((row) => row[col]));
+    const uniqueValues = new Set(data.map(row => row[col]));
     const nullCount = data.filter(
-      (row) => row[col] == null || row[col] === ""
+      row => row[col] == null || row[col] === ""
     ).length;
 
     const base: ColumnStats = {
@@ -203,14 +209,18 @@ export function analyzeDataset(
 
     if (type === "date") {
       const dates = data
-        .map((row) => row[col])
-        .filter((v) => v != null)
+        .map(row => row[col])
+        .filter(v => v != null)
+        .map(String)
         .sort();
       return {
         ...base,
         dateRange:
           dates.length > 0
-            ? { earliest: String(dates[0]), latest: String(dates[dates.length - 1]) }
+            ? {
+                earliest: String(dates[0]),
+                latest: String(dates[dates.length - 1]),
+              }
             : undefined,
       };
     }
@@ -224,7 +234,7 @@ export function analyzeDataset(
   // For each categorical column × each numeric column → sum and mean
   for (const catCol of categoricalColumns.slice(0, 4)) {
     // Only aggregate if there are a reasonable number of categories (≤ 20)
-    const uniqueCats = new Set(data.map((r) => r[catCol]));
+    const uniqueCats = new Set(data.map(r => r[catCol]));
     if (uniqueCats.size > 20) continue;
 
     for (const numCol of numericColumns.slice(0, 6)) {
@@ -273,18 +283,18 @@ export function analyzeDataset(
 
       const paired = data
         .filter(
-          (row) =>
+          row =>
             typeof row[xCol] === "number" &&
             !isNaN(row[xCol]) &&
             typeof row[yCol] === "number" &&
             !isNaN(row[yCol])
         )
-        .map((row) => ({ x: row[xCol] as number, y: row[yCol] as number }));
+        .map(row => ({ x: row[xCol] as number, y: row[yCol] as number }));
 
       if (paired.length >= 3) {
         const corr = pearsonCorrelation(
-          paired.map((p) => p.x),
-          paired.map((p) => p.y)
+          paired.map(p => p.x),
+          paired.map(p => p.y)
         );
 
         correlations.push({
@@ -338,7 +348,7 @@ export function buildAnalysisSummaryText(summary: DataSummary): string {
     } else if (stat.type === "string" && stat.topValues) {
       const top3 = stat.topValues
         .slice(0, 5)
-        .map((t) => `${t.value}(${t.count})`)
+        .map(t => `${t.value}(${t.count})`)
         .join(", ");
       lines.push(
         `- **${stat.column}** (categorical, ${stat.uniqueCount} unique): top values = ${top3}`
@@ -417,10 +427,7 @@ export function findRelevantAggregation(
     }
 
     // Operation hints
-    if (
-      (q.includes("total") || q.includes("sum")) &&
-      agg.operation === "sum"
-    )
+    if ((q.includes("total") || q.includes("sum")) && agg.operation === "sum")
       score += 2;
     if (
       (q.includes("average") || q.includes("avg") || q.includes("mean")) &&

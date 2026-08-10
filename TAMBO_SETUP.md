@@ -1,217 +1,91 @@
-# Tambo React App - Setup & Configuration Guide
+# Tambo React SDK setup
 
-## Overview
+This project uses `@tambo-ai/react` 1.3.0 with React 19, Zod 4, and the current content-block/thread API.
 
-This is a **React 19 + Tailwind CSS 4** application integrated with **Tambo AI**, an open-source generative UI framework. The app features a modern chat interface that dynamically renders React components based on AI-powered conversations.
+## Configure Tambo Cloud
 
-## What is Tambo?
-
-Tambo is an AI orchestration framework for React that enables:
-- **Generative UI**: AI dynamically decides which components to render based on conversations
-- **Interactive Components**: Real React components, not just markdown
-- **Natural Language Control**: Describe what you want, and Tambo renders it
-- **Component Registration**: Register your custom components for AI to use
-
-## Getting Started
-
-### 1. Get a Tambo API Key
-
-1. Visit [Tambo Dashboard](https://dashboard.tambo.co/)
-2. Sign up for a free account
-3. Create a new API key
-4. Copy your API key
-
-### 2. Configure the API Key
-
-Update `.env.local` in the project root:
+1. Create or select a project at [dashboard.tambo.co](https://dashboard.tambo.co/).
+2. Copy the project API key intended for the browser SDK.
+3. Copy `.env.example` to `.env.local`.
+4. Set the key and restart Vite.
 
 ```env
-VITE_TAMBO_API_KEY=your_actual_api_key_here
+VITE_TAMBO_API_KEY=your_tambo_project_api_key
 ```
 
-### 3. Install Dependencies
+An optional Tambo environment can be selected with:
+
+```env
+VITE_TAMBO_ENVIRONMENT=production
+```
+
+Vite exposes every `VITE_` value to browser code. The Tambo project API key is public client configuration under the official browser SDK model; it is not a safe location for OpenAI, Anthropic, database, OAuth client-secret, or other private provider credentials. Never commit a real `.env` file or print the key.
+
+## Provider and identity
+
+`client/src/components/providers/TamboAppProvider.tsx` is the only provider configuration. It supplies:
+
+- The browser project API key.
+- The optional environment.
+- The component registry from `client/src/lib/componentRegistry.ts`.
+- A stable anonymous `userKey`.
+
+The anonymous key has the form `dashboard-builder-anonymous-<uuid>` and is stored at `dashboard-builder.anonymous-user-key` in `localStorage`. Each browser profile gets its own identifier and reuses it after refresh. It is an ownership key, not a secret. Replace the isolated identity utility with an authenticated application user ID when real authentication is introduced.
+
+## Threads and input
+
+`DashboardBuilder` uses the 1.x SDK APIs:
+
+- `useTambo()` for messages, `currentThreadId`, streaming state, errors, and `startNewThread()`.
+- `useTamboThreadInput()` for shared input state and `submit()`.
+- `useTamboContextHelpers()` for the current dataset and deterministic analysis context.
+
+The old `useTamboThread()` orchestration path, manual `api.tambo.co` request, response JSON parsing, fake intent routing, artificial delay, and mock analytics have been removed. Starting a new conversation calls the SDK's `startNewThread()` and clears the input.
+
+## Message rendering
+
+Tambo 1.x returns an array of content blocks on every message. The focused components under `client/src/components/chat/` handle:
+
+- `text` blocks as role-styled message bubbles.
+- `component` blocks through the official `ComponentRenderer` with `threadId` and `messageId`.
+- `tool_use` status blocks.
+- `tool_result` errors without dumping successful internal output into the conversation.
+- `resource` labels.
+- Unknown future block types with a safe fallback.
+- Component streaming labels and render-time error isolation.
+
+The app does not read the removed message-level `renderedComponent` field.
+
+## Components and schemas
+
+Add a dashboard component in three places:
+
+1. Create the React component under `client/src/components/dashboard/`.
+2. Add a strict schema and inferred prop type to `client/src/lib/componentSchemas.ts`.
+3. Add exactly one registration entry to `client/src/lib/componentRegistry.ts`.
+
+Schemas are passed directly as Zod 4 Standard Schemas. `dataRowSchema` uses `z.record(z.string(), primitiveValueSchema)`, which is covered by tests against the installed SDK-compatible schema model. Known chart shapes are explicit, non-empty data is required, and components still validate runtime input so incomplete or malformed streamed props show a useful state rather than a crash or demo chart.
+
+## Commands
 
 ```bash
 pnpm install
-```
-
-### 4. Start Development Server
-
-```bash
 pnpm dev
+pnpm check
+pnpm test
+pnpm build
 ```
 
-The app will be available at `http://localhost:3000`
-
-## Project Structure
-
-```
-client/
-├── src/
-│   ├── components/
-│   │   └── ChatInterface.tsx    # Main chat UI with Tambo integration
-│   ├── pages/
-│   │   └── Home.tsx             # Home page (uses ChatInterface)
-│   ├── App.tsx                  # Root component with TamboProvider
-│   ├── index.css                # Global styles & theme
-│   └── main.tsx                 # React entry point
-├── index.html                   # HTML template with fonts
-└── public/                      # Static assets
-```
-
-## Design Philosophy
-
-The app follows a **Modern Minimalist with AI Accent** design:
-
-- **Color Scheme**: 
-  - Primary: Deep Indigo (`#4F46E5`)
-  - Accent: Vibrant Cyan (`#06B6D4`)
-  - Background: Clean White with subtle gradients
-
-- **Typography**:
-  - Headers: Poppins (bold, modern)
-  - Body: Inter (clean, readable)
-  - Code: Fira Code (monospace)
-
-- **Interactions**:
-  - Smooth message animations (fade-in, slide-up)
-  - Thinking indicator with animated dots
-  - Responsive hover states
-  - Keyboard-friendly navigation
-
-## Key Components
-
-### ChatInterface Component
-
-Located in `client/src/components/ChatInterface.tsx`
-
-Features:
-- Message threading with user/assistant roles
-- Auto-scrolling to latest messages
-- Thinking indicator animation
-- Responsive input area
-- Timestamp display for messages
-
-### TamboProvider
-
-Wraps the entire app in `App.tsx` to enable AI orchestration:
-
-```tsx
-<TamboProvider apiKey={tamboApiKey}>
-  {/* Your app content */}
-</TamboProvider>
-```
-
-## Customization
-
-### Adding Custom Components
-
-To register custom components with Tambo:
-
-1. Create your component in `client/src/components/`
-2. Register it in the Tambo configuration (see Tambo docs)
-3. Reference it in your chat prompts
-
-Example:
-```tsx
-// client/src/components/CustomChart.tsx
-export function CustomChart({ data }) {
-  return <div>Your chart here</div>;
-}
-```
-
-### Styling
-
-- Global styles: `client/src/index.css`
-- Component styles: Use Tailwind classes directly in JSX
-- Theme colors: Defined as CSS variables in `index.css`
-
-### Connecting to Real AI
-
-Replace the placeholder AI response in `ChatInterface.tsx`:
-
-```tsx
-// Current placeholder (line ~60):
-setTimeout(() => {
-  const aiMessage: Message = {
-    id: (Date.now() + 1).toString(),
-    role: "assistant",
-    content: "This is a placeholder response...",
-    timestamp: new Date(),
-  };
-  setMessages((prev) => [...prev, aiMessage]);
-  setIsLoading(false);
-}, 1000);
-
-// Replace with actual Tambo API call:
-// Use @tambo-ai/react hooks to interact with Tambo
-```
-
-## Available Scripts
-
-```bash
-# Development
-pnpm dev          # Start dev server
-pnpm check        # Type check with TypeScript
-
-# Production
-pnpm build        # Build for production
-pnpm start        # Run production build
-pnpm preview      # Preview production build
-
-# Code Quality
-pnpm format       # Format code with Prettier
-```
-
-## Dependencies
-
-- **React 19**: UI framework
-- **Tailwind CSS 4**: Utility-first CSS
-- **shadcn/ui**: Pre-built UI components
-- **@tambo-ai/react**: AI orchestration
-- **Framer Motion**: Smooth animations
-- **Wouter**: Client-side routing
-- **Lucide React**: Icons
+Node.js 20+ and pnpm 10.x are required.
 
 ## Troubleshooting
 
-### API Key Not Working
+- Setup page instead of the app: verify `VITE_TAMBO_API_KEY` and restart Vite.
+- Authentication/thread error: clear only the `dashboard-builder.anonymous-user-key` local-storage entry to obtain a new anonymous identity, then retry.
+- Unknown component: confirm its name matches the single registry entry.
+- Invalid component data: inspect the schema and prompt context; the app deliberately refuses to display unrelated fallback data.
+- Type/schema regression: run `pnpm check && pnpm test`.
 
-1. Verify the API key is correct in `.env.local`
-2. Check that the file is named `.env.local` (not `.env`)
-3. Restart the dev server after updating `.env.local`
+## Not implemented in Phase 1
 
-### Components Not Rendering
-
-1. Ensure TamboProvider is wrapping your app
-2. Check browser console for errors
-3. Verify API key is set correctly
-
-### Styling Issues
-
-1. Clear browser cache (Cmd+Shift+R / Ctrl+Shift+R)
-2. Restart dev server
-3. Check that Tailwind classes are being applied
-
-## Next Steps
-
-1. **Connect Real AI**: Implement actual Tambo API calls
-2. **Register Components**: Add custom components for Tambo to render
-3. **Add Features**: Implement conversation history, user profiles, etc.
-4. **Deploy**: Deploy to production using Manus hosting or your preferred platform
-
-## Resources
-
-- [Tambo Documentation](https://docs.tambo.co/)
-- [Tambo GitHub](https://github.com/tambo-ai/tambo)
-- [React Documentation](https://react.dev/)
-- [Tailwind CSS](https://tailwindcss.com/)
-- [shadcn/ui](https://ui.shadcn.com/)
-
-## Support
-
-For issues with Tambo, visit the [Tambo Discord](https://discord.gg/tambo) or check the [GitHub Issues](https://github.com/tambo-ai/tambo/issues).
-
----
-
-**Built with ❤️ using React, Tambo, and Tailwind CSS**
+Typed deterministic data tools, a persistent dashboard canvas, interactable widgets, dashboard save/restore, layouts, filters, and undo/redo are Phase 2 work. The existing deterministic analysis functions remain local context-building utilities until they are exposed as tools in that phase.

@@ -1,9 +1,15 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  type ReactNode,
+} from "react";
 
 export interface Dataset {
   id: string;
   name: string;
-  data: Record<string, any>[];
+  data: Record<string, unknown>[];
   columns: string[];
   columnTypes: Record<string, "string" | "number" | "date">;
   rowCount: number;
@@ -14,7 +20,7 @@ interface DataContextValue {
   datasets: Dataset[];
   activeDataset: Dataset | null;
   activeDatasetId: string | null;
-  addDataset: (name: string, data: Record<string, any>[]) => string;
+  addDataset: (name: string, data: Record<string, unknown>[]) => string;
   removeDataset: (id: string) => void;
   setActiveDataset: (id: string | null) => void;
   clearAll: () => void;
@@ -22,7 +28,9 @@ interface DataContextValue {
 
 const DataContext = createContext<DataContextValue | null>(null);
 
-function detectColumnTypes(data: Record<string, any>[]): Record<string, "string" | "number" | "date"> {
+export function detectColumnTypes(
+  data: Record<string, unknown>[]
+): Record<string, "string" | "number" | "date"> {
   if (data.length === 0) return {};
 
   const types: Record<string, "string" | "number" | "date"> = {};
@@ -32,8 +40,8 @@ function detectColumnTypes(data: Record<string, any>[]): Record<string, "string"
     // Sample first 10 non-null values
     const samples = data
       .slice(0, 10)
-      .map((row) => row[col])
-      .filter((v) => v != null && v !== "");
+      .map(row => row[col])
+      .filter(v => v != null && v !== "");
 
     if (samples.length === 0) {
       types[col] = "string";
@@ -41,7 +49,7 @@ function detectColumnTypes(data: Record<string, any>[]): Record<string, "string"
     }
 
     // Check if all samples are numbers (or can be parsed as numbers)
-    const allNumbers = samples.every((v) => {
+    const allNumbers = samples.every(v => {
       if (typeof v === "number") return true;
       const parsed = Number(v);
       return !isNaN(parsed) && String(parsed) === String(v).trim();
@@ -53,8 +61,8 @@ function detectColumnTypes(data: Record<string, any>[]): Record<string, "string"
     }
 
     // Check if values look like dates
-    const allDates = samples.every((v) => {
-      const d = new Date(v);
+    const allDates = samples.every(v => {
+      const d = new Date(String(v));
       return !isNaN(d.getTime());
     });
 
@@ -70,11 +78,11 @@ function detectColumnTypes(data: Record<string, any>[]): Record<string, "string"
 }
 
 function coerceData(
-  data: Record<string, any>[],
+  data: Record<string, unknown>[],
   types: Record<string, "string" | "number" | "date">
-): Record<string, any>[] {
-  return data.map((row) => {
-    const newRow: Record<string, any> = {};
+): Record<string, unknown>[] {
+  return data.map(row => {
+    const newRow: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(row)) {
       if (types[key] === "number" && typeof value === "string") {
         newRow[key] = Number(value);
@@ -92,30 +100,33 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [datasets, setDatasets] = useState<Dataset[]>([]);
   const [activeDatasetId, setActiveDatasetId] = useState<string | null>(null);
 
-  const addDataset = useCallback((name: string, rawData: Record<string, any>[]): string => {
-    const id = `dataset-${nextId++}`;
-    const columns = rawData.length > 0 ? Object.keys(rawData[0]) : [];
-    const columnTypes = detectColumnTypes(rawData);
-    const data = coerceData(rawData, columnTypes);
+  const addDataset = useCallback(
+    (name: string, rawData: Record<string, unknown>[]): string => {
+      const id = `dataset-${nextId++}`;
+      const columns = rawData.length > 0 ? Object.keys(rawData[0]) : [];
+      const columnTypes = detectColumnTypes(rawData);
+      const data = coerceData(rawData, columnTypes);
 
-    const dataset: Dataset = {
-      id,
-      name,
-      data,
-      columns,
-      columnTypes,
-      rowCount: data.length,
-      uploadedAt: new Date(),
-    };
+      const dataset: Dataset = {
+        id,
+        name,
+        data,
+        columns,
+        columnTypes,
+        rowCount: data.length,
+        uploadedAt: new Date(),
+      };
 
-    setDatasets((prev) => [...prev, dataset]);
-    setActiveDatasetId(id);
-    return id;
-  }, []);
+      setDatasets(prev => [...prev, dataset]);
+      setActiveDatasetId(id);
+      return id;
+    },
+    []
+  );
 
   const removeDataset = useCallback((id: string) => {
-    setDatasets((prev) => prev.filter((d) => d.id !== id));
-    setActiveDatasetId((prev) => (prev === id ? null : prev));
+    setDatasets(prev => prev.filter(d => d.id !== id));
+    setActiveDatasetId(prev => (prev === id ? null : prev));
   }, []);
 
   const setActiveDataset = useCallback((id: string | null) => {
@@ -127,7 +138,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setActiveDatasetId(null);
   }, []);
 
-  const activeDataset = datasets.find((d) => d.id === activeDatasetId) ?? null;
+  const activeDataset = datasets.find(d => d.id === activeDatasetId) ?? null;
 
   return (
     <DataContext.Provider

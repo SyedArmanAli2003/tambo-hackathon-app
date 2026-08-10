@@ -2,46 +2,16 @@ import { Button } from "@/components/ui/button";
 import { useData } from "@/contexts/DataContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, Loader2, Sparkles, AlertTriangle } from "lucide-react";
-import { useTamboThread, useTamboThreadInput } from "@tambo-ai/react";
-import { useMemo, useRef, useEffect, Component, type ReactNode } from "react";
 import {
-  analyzeDataset,
-  buildAnalysisSummaryText,
-  findRelevantAggregation,
-  type DataSummary,
-} from "@/lib/dataAnalysis";
+  useTambo,
+  useTamboContextHelpers,
+  useTamboThreadInput,
+} from "@tambo-ai/react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import { analyzeDataset, type DataSummary } from "@/lib/dataAnalysis";
 import { useDashboardNav } from "@/contexts/DashboardNavContext";
-
-/**
- * Inline error boundary that catches crashes in AI-rendered components
- * so one bad component doesn't kill the entire app.
- */
-class ComponentErrorBoundary extends Component<
-  { children: ReactNode },
-  { hasError: boolean; error: Error | null }
-> {
-  constructor(props: { children: ReactNode }) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error };
-  }
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-4 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
-          <div>
-            <p className="text-sm font-medium text-red-800 dark:text-red-300">Component failed to render</p>
-            <p className="text-xs text-red-600 dark:text-red-400 mt-1">{this.state.error?.message || "Unknown error"}</p>
-          </div>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
+import MessageList from "@/components/chat/MessageList";
+import { buildDashboardContext } from "@/lib/dashboardContext";
 
 /**
  * Dashboard Builder Component
@@ -50,13 +20,25 @@ class ComponentErrorBoundary extends Component<
  */
 export default function DashboardBuilder() {
   const { activeDataset } = useData();
-  const { thread, startNewThread, generationStage, generationStatusMessage } = useTamboThread();
-  const { value, setValue, submit, isPending } = useTamboThreadInput();
+  const {
+    messages,
+    currentThreadId,
+    startNewThread,
+    isStreaming,
+    isWaiting,
+    streamingState,
+  } = useTambo();
+  const {
+    value,
+    setValue,
+    submit,
+    isPending,
+    error: inputError,
+  } = useTamboThreadInput();
+  const { addContextHelper, removeContextHelper } = useTamboContextHelpers();
   const dashboardContentRef = useRef<HTMLDivElement>(null);
   const { register } = useDashboardNav();
-
-  const messages = thread?.messages ?? [];
-  const isLoading = isPending || (generationStage !== "IDLE" && generationStage !== "COMPLETE" && generationStage !== "ERROR");
+  const isLoading = isPending || isWaiting || isStreaming;
 
   // Pre-compute data analysis whenever the active dataset changes
   const dataSummary: DataSummary | null = useMemo(() => {
@@ -68,97 +50,30 @@ export default function DashboardBuilder() {
     );
   }, [activeDataset]);
 
+  const contextRef = useRef(
+    buildDashboardContext(activeDataset, dataSummary, value)
+  );
+  contextRef.current = buildDashboardContext(activeDataset, dataSummary, value);
+
+  useEffect(() => {
+    addContextHelper("dashboardDataset", () => contextRef.current);
+    return () => removeContextHelper("dashboardDataset");
+  }, [addContextHelper, removeContextHelper]);
+
   const handleGenerate = async () => {
     if (!value.trim() || isLoading) return;
 
-    // Build rich additional context with analysis
-    const additionalContext: Record<string, any> = {};
-
-    // System-level instruction to make the AI behave like a data analyst
-    additionalContext.systemInstruction = `You are an expert data analyst and dashboard builder. Your job is to:
-1. UNDERSTAND the user's question and figure out EXACTLY what they want to see.
-2. ANALYZE the provided dataset to compute the correct answer.
-3. CHOOSE the right visualization component(s) for the answer.
-4. COMPUTE and AGGREGATE the actual data from the dataset — do NOT use placeholder or made-up numbers.
-5. ALWAYS respond with relevant, query-specific content. Different questions MUST produce different outputs.
-
-RULES:
-- If the user asks a QUESTION (e.g. "which product has highest revenue?"), answer it with a TextBlock containing your analysis AND show a supporting chart.
-- If the user asks for a VISUALIZATION (e.g. "show revenue by region"), pick the right chart type and aggregate the data correctly.
-- For KPI/summary requests, compute the real values (sum, average, count, etc.) from the data.
-- For comparisons, use BarChart. For trends over time, use LineChart. For proportions, use PieChart. For correlations, use ScatterPlot. For lists/details, use DataTable.
-- You can render MULTIPLE components in a single response when appropriate.
-- ALWAYS pass the actual computed/aggregated data arrays to component props — never leave data empty.
-- Format numbers nicely (e.g. "$1.2M" instead of "1234567").
-- When the user's question is unrelated to the data, politely explain what data is available and suggest relevant queries.`;
-
-    if (activeDataset && dataSummary) {
-      // Provide the full analysis context
-      const summaryText = buildAnalysisSummaryText(dataSummary);
-      const relevantAgg = findRelevantAggregation(dataSummary, value);
-
-      additionalContext.datasetInfo = {
-        name: activeDataset.name,
-        rowCount: activeDataset.rowCount,
-        columns: activeDataset.columns,
-        columnTypes: activeDataset.columnTypes,
-      };
-
-      additionalContext.analysisSummary = summaryText;
-
-      // Pass full column stats
-      additionalContext.columnStats = dataSummary.columnStats;
-
-      // Pass relevant pre-computed aggregation if found
-      if (relevantAgg) {
-        additionalContext.relevantAggregation = {
-          description: relevantAgg.description,
-          groupBy: relevantAgg.groupBy,
-          metric: relevantAgg.metric,
-          operation: relevantAgg.operation,
-          data: relevantAgg.data,
-        };
-      }
-
-      // Pass top correlations
-      if (dataSummary.correlations.length > 0) {
-        additionalContext.correlations = dataSummary.correlations
-          .sort((a, b) => Math.abs(b.correlation) - Math.abs(a.correlation))
-          .slice(0, 5)
-          .map((c) => ({
-            x: c.xColumn,
-            y: c.yColumn,
-            r: c.correlation,
-            scatterData: c.scatterData.slice(0, 50),
-          }));
-      }
-
-      // Pass a compact version of the data (limit rows for token budget)
-      const dataSlice = activeDataset.data.slice(0, 200);
-      additionalContext.data = dataSlice;
-
-      // Available aggregations list
-      additionalContext.availableAggregations = dataSummary.precomputedAggregations
-        .slice(0, 30)
-        .map((a) => ({
-          description: a.description,
-          groupBy: a.groupBy,
-          metric: a.metric,
-          operation: a.operation,
-          data: a.data,
-        }));
-
-      additionalContext.instruction = `The user uploaded "${activeDataset.name}" (${activeDataset.rowCount} rows, columns: ${activeDataset.columns.join(", ")}). Use the data, analysis summary, and pre-computed aggregations provided to answer their query accurately. The aggregation data is already computed and ready to use as chart data — just map it to the right component props format.`;
-    } else {
-      additionalContext.instruction = `No dataset is uploaded. If the user asks about data, tell them to upload a CSV or JSON file first using the upload button. You can still answer general questions or show example dashboards with sample data you generate.`;
+    try {
+      await submit();
+    } catch {
+      // The SDK exposes the submission error through its mutation state below.
     }
-
-    await submit({ additionalContext });
   };
 
-  const handleClear = () => {
+  const handleClear = useCallback(() => {
     startNewThread();
-  };
+    setValue("");
+  }, [setValue, startNewThread]);
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -167,22 +82,18 @@ RULES:
     }
   };
 
-  // Extract text content from a message
-  const getMessageText = (msg: any): string => {
-    if (typeof msg.content === "string") return msg.content;
-    if (Array.isArray(msg.content)) {
-      return msg.content
-        .filter((p: any) => p.type === "text")
-        .map((p: any) => p.text)
-        .join(" ");
-    }
-    return "";
-  };
-
   // Register dashboard state with navbar context
   useEffect(() => {
-    register({ dashboardRef: dashboardContentRef, hasMessages: messages.length > 0, onClear: handleClear });
-  }, [messages.length]);
+    register({
+      dashboardRef: dashboardContentRef,
+      hasMessages: messages.length > 0,
+      onClear: handleClear,
+    });
+  }, [handleClear, messages.length, register]);
+
+  const errorMessage =
+    streamingState.error?.message ??
+    (inputError instanceof Error ? inputError.message : null);
 
   return (
     <div className="min-h-[calc(100vh-56px)] bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 flex flex-col">
@@ -205,23 +116,30 @@ RULES:
                   </h2>
                 </div>
                 <p className="text-slate-600 dark:text-slate-400 mb-6">
-                  Describe the dashboard you want in natural language. Our AI will
-                  intelligently choose and render the right components for you.
+                  Describe the dashboard you want in natural language. Our AI
+                  will intelligently choose and render the right components for
+                  you.
                 </p>
                 <div className="space-y-3 text-left bg-slate-50 dark:bg-slate-900/50 rounded-lg p-6 mb-6">
-                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Try asking for:</p>
+                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
+                    Try asking for:
+                  </p>
                   <div className="space-y-2">
                     <p className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-2">
-                      <span className="text-xl">📊</span> "Show me sales by region with revenue trends"
+                      <span className="text-xl">📊</span> "Show me sales by
+                      region with revenue trends"
                     </p>
                     <p className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-2">
-                      <span className="text-xl">📈</span> "Create a user growth dashboard"
+                      <span className="text-xl">📈</span> "Create a user growth
+                      dashboard"
                     </p>
                     <p className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-2">
-                      <span className="text-xl">🔗</span> "Analyze revenue vs customer correlation"
+                      <span className="text-xl">🔗</span> "Analyze revenue vs
+                      customer correlation"
                     </p>
                     <p className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-2">
-                      <span className="text-xl">📁</span> Upload a CSV/JSON file, then ask about your data
+                      <span className="text-xl">📁</span> Upload a CSV/JSON
+                      file, then ask about your data
                     </p>
                   </div>
                 </div>
@@ -231,46 +149,24 @@ RULES:
 
           {/* Chat Messages & Rendered Components */}
           {messages.length > 0 && (
-            <div ref={dashboardContentRef} className="space-y-6 mb-8">
-              {messages.map((msg: any, idx: number) => {
-                const text = getMessageText(msg);
-                const isUser = msg.role === "user";
-
-                return (
-                  <motion.div
-                    key={msg.id || idx}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: Math.min(idx * 0.05, 0.3) }}
-                  >
-                    {/* Text bubble */}
-                    {text && (
-                      <div className={`flex ${isUser ? "justify-end" : "justify-start"} mb-3`}>
-                        <div
-                          className={`max-w-lg px-4 py-3 rounded-lg ${
-                            isUser
-                              ? "bg-indigo-600 text-white rounded-br-none"
-                              : "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-bl-none"
-                          }`}
-                        >
-                          <p className="text-sm whitespace-pre-wrap">{text}</p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* AI-rendered component */}
-                    {msg.renderedComponent && (
-                      <div className="bg-white/80 dark:bg-slate-800/60 backdrop-blur-xl rounded-lg border border-slate-200 dark:border-slate-700/60 p-6 shadow-sm hover:shadow-md transition-shadow">
-                        <ComponentErrorBoundary>
-                          {msg.renderedComponent}
-                        </ComponentErrorBoundary>
-                      </div>
-                    )}
-                  </motion.div>
-                );
-              })}
+            <div ref={dashboardContentRef}>
+              <MessageList messages={messages} threadId={currentThreadId} />
             </div>
           )}
+
+          {errorMessage ? (
+            <div className="max-w-2xl mx-auto my-6 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-4 flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-red-800 dark:text-red-300">
+                  Generation failed
+                </p>
+                <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                  {errorMessage}
+                </p>
+              </div>
+            </div>
+          ) : null}
 
           {/* Loading / Generation Status */}
           <AnimatePresence>
@@ -284,13 +180,11 @@ RULES:
                 <div className="text-center">
                   <Loader2 className="w-8 h-8 text-indigo-600 animate-spin mx-auto mb-3" />
                   <p className="text-sm text-slate-600 dark:text-slate-400">
-                    {generationStatusMessage || "Thinking..."}
+                    {isWaiting ? "Waiting for Tambo…" : "Generating dashboard…"}
                   </p>
-                  {generationStage && generationStage !== "IDLE" && (
-                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 capitalize">
-                      {generationStage.replace(/_/g, " ").toLowerCase()}
-                    </p>
-                  )}
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 capitalize">
+                    {streamingState.status}
+                  </p>
                 </div>
               </motion.div>
             )}
@@ -300,7 +194,8 @@ RULES:
           {messages.length === 0 && (
             <div className="max-w-2xl mx-auto mt-8 text-center">
               <p className="text-xs text-slate-500 dark:text-slate-500 flex items-center justify-center gap-2">
-                <span>💡</span> Tip: Upload your data first, then ask the AI to visualize it
+                <span>💡</span> Tip: Upload your data first, then ask the AI to
+                visualize it
               </p>
             </div>
           )}
@@ -314,7 +209,7 @@ RULES:
             <input
               type="text"
               value={value}
-              onChange={(e) => setValue(e.target.value)}
+              onChange={e => setValue(e.target.value)}
               onKeyDown={handleKeyPress}
               placeholder="Describe your dashboard (e.g., 'Show me sales by region with revenue trends')..."
               className="flex-1 px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"

@@ -7,6 +7,7 @@
 ### Core Innovation
 
 Instead of manually selecting and configuring dashboard components, users simply describe what they need:
+
 - "Show me sales by region with revenue trends"
 - "Create a user growth dashboard"
 - "Analyze revenue vs customer correlation"
@@ -18,11 +19,13 @@ Tambo's AI understands these requests and automatically renders the right compon
 ## 🚀 Key Features
 
 ### 1. **Natural Language Dashboard Generation**
+
 - Users describe dashboards in plain English
 - AI interprets requests and selects appropriate components
 - Real-time component rendering
 
 ### 2. **Rich Component Library**
+
 - **KPI Cards** - Key metrics with trend indicators
 - **Line Charts** - Time-series data visualization
 - **Bar Charts** - Category comparisons
@@ -33,6 +36,7 @@ Tambo's AI understands these requests and automatically renders the right compon
 - **Text Blocks** - Insights and information
 
 ### 3. **Beautiful UI/UX**
+
 - Modern, polished interface with Tailwind CSS 4
 - Smooth animations powered by Framer Motion
 - Responsive design for all devices
@@ -40,6 +44,7 @@ Tambo's AI understands these requests and automatically renders the right compon
 - Real-time data updates
 
 ### 4. **Production-Ready Code**
+
 - TypeScript for type safety
 - Zod schemas for component validation
 - Component registry for Tambo integration
@@ -51,14 +56,18 @@ Tambo's AI understands these requests and automatically renders the right compon
 ## 💡 How It Demonstrates Tambo's Power
 
 ### Problem Solved
+
 Traditional dashboard builders require users to:
+
 1. Know what components exist
 2. Manually select each component
 3. Configure data sources
 4. Arrange layout manually
 
 ### Tambo Solution
+
 Users simply describe what they want, and Tambo handles:
+
 1. **Understanding** - Natural language processing
 2. **Decision Making** - Selecting appropriate components
 3. **Rendering** - Dynamic React component generation
@@ -71,6 +80,7 @@ This showcases **Generative UI** in action - the AI decides which UI to render b
 ## 🏗️ Architecture
 
 ### Component Structure
+
 ```
 Dashboard Builder (Main Interface)
 ├── Chat Interface
@@ -96,6 +106,7 @@ Dashboard Builder (Main Interface)
 ```
 
 ### Technology Stack
+
 - **Frontend**: React 19 + TypeScript
 - **Styling**: Tailwind CSS 4
 - **UI Components**: shadcn/ui
@@ -122,9 +133,11 @@ The app follows a **Modern Minimalist with AI Accent** design approach:
 ## 📊 Demo Scenarios
 
 ### Scenario 1: Sales Dashboard
+
 **Input**: "Show me sales by region with revenue trends and top customers"
 
-**Output**: 
+**Output**:
+
 - Total Revenue KPI Card
 - Active Users KPI Card
 - Monthly Revenue Trend Line Chart
@@ -133,18 +146,22 @@ The app follows a **Modern Minimalist with AI Accent** design approach:
 - Top Customers Data Table
 
 ### Scenario 2: Growth Metrics
+
 **Input**: "Create a user growth dashboard"
 
 **Output**:
+
 - User Growth Stat Card
 - Conversion Rate Stat Card
 - User Growth Over Time Line Chart
 - Key Insights Text Block
 
 ### Scenario 3: Correlation Analysis
+
 **Input**: "Analyze revenue vs customer correlation"
 
 **Output**:
+
 - Revenue vs Customer Count Scatter Plot
 - Regional Performance Bar Chart
 
@@ -153,33 +170,39 @@ The app follows a **Modern Minimalist with AI Accent** design approach:
 ## 🎯 Judging Criteria Alignment
 
 ### ✅ Potential Impact (20%)
+
 - **Problem**: Dashboard creation is tedious and requires technical knowledge
 - **Solution**: Natural language makes dashboard creation accessible to everyone
 - **Impact**: Democratizes data visualization and business intelligence
 
 ### ✅ Creativity & Originality (20%)
+
 - **Unique Approach**: Uses Tambo to dynamically render components based on natural language
 - **Innovation**: Showcases generative UI in a practical, real-world use case
 - **Differentiation**: Goes beyond simple component rendering to true AI-driven UI generation
 
 ### ✅ Learning & Growth (15%)
+
 - **Technical Complexity**: Integrates React, Tambo, Recharts, animations, and state management
 - **First-Time Builders**: Demonstrates how to build with Tambo from scratch
 - **Advanced Patterns**: Shows component registry, schema validation, and AI orchestration
 
 ### ✅ Technical Implementation (20%)
+
 - **Code Quality**: Clean, modular, well-organized TypeScript
 - **Tambo Integration**: Proper component registration and schema definitions
 - **Error Handling**: Graceful fallbacks and validation
 - **Performance**: Smooth animations, fast rendering, optimized re-renders
 
 ### ✅ Aesthetics & UX (15%)
+
 - **Visual Design**: Modern, polished interface
 - **User Experience**: Intuitive chat interface, clear feedback
 - **Animations**: Smooth transitions, loading states, entrance animations
 - **Responsiveness**: Works beautifully on all screen sizes
 
 ### ✅ Best Use Case of Tambo (10%)
+
 - **Generative UI Showcase**: Perfect demonstration of Tambo's core capability
 - **Real-World Problem**: Solves actual dashboard creation challenges
 - **Component Orchestration**: Shows how AI can make intelligent UI decisions
@@ -190,6 +213,7 @@ The app follows a **Modern Minimalist with AI Accent** design approach:
 ## 🚀 Getting Started
 
 ### Installation
+
 ```bash
 cd tambo-react-app
 pnpm install
@@ -197,17 +221,21 @@ pnpm dev
 ```
 
 ### Adding Your Tambo API Key
+
 1. Get your API key from https://dashboard.tambo.co/
-2. Update `.env.local`:
+2. Copy `.env.example` to `.env.local` and set the browser project key:
    ```
    VITE_TAMBO_API_KEY=your_api_key_here
    ```
 3. Restart the dev server
 
+`VITE_` values are bundled into the browser. Use only the public Tambo project key here, never private model-provider credentials.
+
 ### Extending the App
+
 1. Create new components in `client/src/components/dashboard/`
-2. Add schemas to `client/src/lib/componentRegistry.ts`
-3. Register in `componentRegistry` object
+2. Add schemas to `client/src/lib/componentSchemas.ts`
+3. Add an entry to the `tamboComponents` array in `client/src/lib/componentRegistry.ts`
 4. Tambo will automatically use them!
 
 ---
@@ -222,7 +250,7 @@ pnpm dev
 2. **Advanced Features**
    - Dashboard persistence and sharing
    - Custom color themes
-   - Export to PDF/PNG
+   - Dashboard filters and undo/redo
    - Real-time collaboration
 
 3. **More Components**
@@ -266,11 +294,12 @@ tambo-react-app/
 │   │   │   │   ├── ScatterPlot.tsx
 │   │   │   │   ├── StatCard.tsx
 │   │   │   │   └── TextBlock.tsx
+│   │   │   ├── chat/
 │   │   │   ├── DashboardBuilder.tsx
-│   │   │   └── ChatInterface.tsx
 │   │   ├── lib/
-│   │   │   ├── mockData.ts
-│   │   │   └── componentRegistry.ts
+│   │   │   ├── componentSchemas.ts
+│   │   │   ├── componentRegistry.ts
+│   │   │   └── dataAnalysis.ts
 │   │   ├── pages/
 │   │   │   └── Home.tsx
 │   │   ├── App.tsx
@@ -296,6 +325,7 @@ tambo-react-app/
 ## 📞 Support
 
 For questions about this implementation:
+
 1. Check the code comments
 2. Review the design document (`DASHBOARD_BUILDER_DESIGN.md`)
 3. Explore the component registry (`componentRegistry.ts`)

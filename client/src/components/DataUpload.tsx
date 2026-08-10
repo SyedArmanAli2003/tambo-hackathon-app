@@ -3,10 +3,24 @@ import Papa from "papaparse";
 import { useData } from "@/contexts/DataContext";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload, FileSpreadsheet, X, Check, AlertCircle, Trash2 } from "lucide-react";
+import {
+  Upload,
+  FileSpreadsheet,
+  X,
+  Check,
+  AlertCircle,
+  Trash2,
+} from "lucide-react";
+import { extractJsonDatasetRows } from "@/lib/datasetRows";
 
 export default function DataUpload() {
-  const { datasets, activeDatasetId, addDataset, removeDataset, setActiveDataset } = useData();
+  const {
+    datasets,
+    activeDatasetId,
+    addDataset,
+    removeDataset,
+    setActiveDataset,
+  } = useData();
   const [dragOver, setDragOver] = useState(false);
   const [parsing, setParsing] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
@@ -22,13 +36,15 @@ export default function DataUpload() {
 
       if (file.name.endsWith(".json")) {
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = e => {
           try {
-            const raw = JSON.parse(e.target?.result as string);
-            const data = Array.isArray(raw) ? raw : raw.data ?? [raw];
+            const raw: unknown = JSON.parse(e.target?.result as string);
+            const data = extractJsonDatasetRows(raw);
 
-            if (data.length === 0 || typeof data[0] !== "object") {
-              setParseError("JSON must be an array of objects or have a 'data' array property.");
+            if (!data) {
+              setParseError(
+                "JSON must contain a non-empty array of flat records or a 'data' array of flat records."
+              );
               setParsing(false);
               return;
             }
@@ -46,23 +62,25 @@ export default function DataUpload() {
         Papa.parse(file, {
           header: true,
           skipEmptyLines: true,
-          complete: (results) => {
+          complete: results => {
             if (results.errors.length > 0 && results.data.length === 0) {
               setParseError(`CSV parse error: ${results.errors[0].message}`);
               setParsing(false);
               return;
             }
-            addDataset(fileName, results.data as Record<string, any>[]);
+            addDataset(fileName, results.data as Record<string, unknown>[]);
             setParsing(false);
             setShowPanel(true);
           },
-          error: (err) => {
+          error: err => {
             setParseError(`CSV parse error: ${err.message}`);
             setParsing(false);
           },
         });
       } else {
-        setParseError("Unsupported file type. Please upload a .csv or .json file.");
+        setParseError(
+          "Unsupported file type. Please upload a .csv or .json file."
+        );
         setParsing(false);
       }
     },
@@ -118,7 +136,9 @@ export default function DataUpload() {
           >
             <div className="p-4">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Your Data</h3>
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                  Your Data
+                </h3>
                 <button
                   onClick={() => setShowPanel(false)}
                   className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
@@ -155,9 +175,12 @@ export default function DataUpload() {
                   <>
                     <FileSpreadsheet className="w-6 h-6 text-slate-400 dark:text-slate-500 mx-auto mb-1" />
                     <p className="text-xs text-slate-600 dark:text-slate-400">
-                      Drop a <strong>.csv</strong> or <strong>.json</strong> file here
+                      Drop a <strong>.csv</strong> or <strong>.json</strong>{" "}
+                      file here
                     </p>
-                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">or click to browse</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                      or click to browse
+                    </p>
                   </>
                 )}
               </div>
@@ -176,7 +199,7 @@ export default function DataUpload() {
                   <p className="text-xs font-medium text-slate-500 dark:text-slate-500 uppercase tracking-wide">
                     Datasets
                   </p>
-                  {datasets.map((ds) => (
+                  {datasets.map(ds => (
                     <div
                       key={ds.id}
                       onClick={() => setActiveDataset(ds.id)}
@@ -191,14 +214,16 @@ export default function DataUpload() {
                           <Check className="w-3 h-3 text-indigo-600 shrink-0" />
                         )}
                         <div className="min-w-0">
-                          <p className="font-medium text-slate-800 dark:text-slate-200 truncate">{ds.name}</p>
+                          <p className="font-medium text-slate-800 dark:text-slate-200 truncate">
+                            {ds.name}
+                          </p>
                           <p className="text-slate-500 dark:text-slate-500">
                             {ds.rowCount} rows · {ds.columns.length} cols
                           </p>
                         </div>
                       </div>
                       <button
-                        onClick={(e) => {
+                        onClick={e => {
                           e.stopPropagation();
                           removeDataset(ds.id);
                         }}

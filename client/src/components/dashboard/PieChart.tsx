@@ -9,77 +9,24 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { motion } from "framer-motion";
-import { marketShareData } from "@/lib/mockData";
-
-interface PieChartProps {
-  title: string;
-  data?: Array<Record<string, any>>;
-  height?: number;
-}
-
-/**
- * Normalize any data format into {name, value} pairs for PieChart.
- * Handles: [{name,value}], [{label,count}], [{Region, Revenue}], etc.
- */
-function normalizePieData(data: Array<Record<string, any>>): Array<{ name: string; value: number }> {
-  if (!data || !Array.isArray(data) || data.length === 0) return [];
-
-  try {
-    const keys = Object.keys(data[0] ?? {});
-    if (keys.length === 0) return [];
-
-    const nameKey = keys.find(k => /^(name|label|category|group|segment)$/i.test(k)) ?? keys.find(k => {
-      const v = data[0]?.[k];
-      return typeof v === "string" && isNaN(Number(v));
-    });
-    const valueKey = keys.find(k => /^(value|count|total|amount|sum|revenue|sales|profit)$/i.test(k)) ?? keys.find(k => {
-      const v = data[0]?.[k];
-      return typeof v === "number" || (typeof v === "string" && !isNaN(Number(v)) && v !== "");
-    });
-
-    if (!nameKey || !valueKey) return data.slice(0, 10).map((row, i) => ({ name: `Item ${i + 1}`, value: 1 }));
-
-    return data
-      .filter(row => row != null && typeof row === "object")
-      .map(row => ({
-        name: String(row[nameKey] ?? "Unknown"),
-        value: typeof row[valueKey] === "number" ? row[valueKey] : Number(row[valueKey]) || 0,
-      }))
-      .filter(d => d.value > 0);
-  } catch {
-    return [];
-  }
-}
+import InvalidWidgetState from "./InvalidWidgetState";
+import { preparePieData } from "@/lib/chartData";
+import type { PieChartProps } from "@/lib/componentSchemas";
 
 /**
  * PieChart Component
  * Displays proportional data with pie visualization
  * Design: Clean pie chart with custom colors and legend
  */
-export default function PieChart({
-  title,
-  data,
-  height = 300,
-}: PieChartProps) {
-  const hasProvidedData = data && Array.isArray(data) && data.length > 0;
-  const providedFiltered = hasProvidedData
-    ? data.filter(row => row != null && typeof row === "object")
-    : [];
-  
-  // Try to normalize provided data first; if it fails, fall back to demo
-  let isDemoFallback = !hasProvidedData || providedFiltered.length === 0;
-  let finalData: Array<{ name: string; value: number }>;
-
-  if (!isDemoFallback) {
-    const normalized = normalizePieData(providedFiltered as any);
-    if (normalized.length === 0) {
-      isDemoFallback = true;
-      finalData = normalizePieData(marketShareData as any);
-    } else {
-      finalData = normalized;
-    }
-  } else {
-    finalData = normalizePieData(marketShareData as any);
+export default function PieChart({ title, data, height = 300 }: PieChartProps) {
+  const finalData = preparePieData(data);
+  if (!finalData.length) {
+    return (
+      <InvalidWidgetState
+        title={title || "Pie chart unavailable"}
+        message="No valid name/value data was supplied for this chart."
+      />
+    );
   }
 
   const COLORS = [
@@ -101,12 +48,9 @@ export default function PieChart({
     >
       <Card className="p-6 border-2 border-slate-200 dark:border-slate-700 hover:shadow-lg transition-shadow">
         <div className="flex items-center justify-between gap-3 mb-4">
-          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">{title}</h3>
-          {isDemoFallback ? (
-            <span className="text-xs px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-600">
-              Demo data
-            </span>
-          ) : null}
+          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+            {title}
+          </h3>
         </div>
         <ResponsiveContainer width="100%" height={height}>
           <RechartsPieChart>
@@ -117,7 +61,8 @@ export default function PieChart({
               labelLine={false}
               label={({ name, value }) => {
                 const total = finalData.reduce((s, d) => s + d.value, 0);
-                const pct = total > 0 ? ((value / total) * 100).toFixed(1) : "0";
+                const pct =
+                  total > 0 ? ((value / total) * 100).toFixed(1) : "0";
                 return `${name}: ${pct}%`;
               }}
               outerRadius={80}
@@ -127,7 +72,7 @@ export default function PieChart({
             >
               {finalData.map((entry, index) => (
                 <Cell
-                  key={`cell-${index}`}
+                  key={`${entry.name}-${index}`}
                   fill={COLORS[index % COLORS.length]}
                 />
               ))}

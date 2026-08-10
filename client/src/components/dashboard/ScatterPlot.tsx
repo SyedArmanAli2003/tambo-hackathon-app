@@ -11,67 +11,15 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { motion } from "framer-motion";
-import { revenueVsCustomersData } from "@/lib/mockData";
-
-interface ScatterPlotProps {
-  title: string;
-  data?: ScatterPlotPoint[];
-  xLabel?: string;
-  yLabel?: string;
-  color?: string;
-  height?: number;
-}
-
-type ScatterPlotPoint = { x: number; y: number } & Record<
-  string,
-  string | number | null
->;
+import InvalidWidgetState from "./InvalidWidgetState";
+import { prepareScatterData } from "@/lib/chartData";
+import type { ScatterPlotProps } from "@/lib/componentSchemas";
 
 /**
  * ScatterPlot Component
  * Displays correlation between two variables
  * Design: Clean scatter plot with grid and tooltip
  */
-/**
- * Normalize scatter data: accepts [{x,y}] or any [{col1, col2}] format.
- */
-function normalizeScatterData(data: any[]): ScatterPlotPoint[] {
-  if (!data || !Array.isArray(data) || data.length === 0) return [];
-
-  try {
-    // Filter out null/undefined entries
-    const validData = data.filter(row => row != null && typeof row === "object");
-    if (validData.length === 0) return [];
-
-    const keys = Object.keys(validData[0] ?? {});
-
-    // Already has x and y
-    if (keys.includes("x") && keys.includes("y")) {
-      return validData.map(row => ({
-        x: typeof row.x === "number" ? row.x : Number(row.x) || 0,
-        y: typeof row.y === "number" ? row.y : Number(row.y) || 0,
-      }));
-    }
-
-    // Find two numeric columns
-    const numericKeys = keys.filter(k => {
-      const v = validData[0]?.[k];
-      return typeof v === "number" || (typeof v === "string" && !isNaN(Number(v)) && v !== "");
-    });
-
-    if (numericKeys.length >= 2) {
-      return validData.map(row => ({
-        x: Number(row[numericKeys[0]]) || 0,
-        y: Number(row[numericKeys[1]]) || 0,
-      }));
-    }
-  } catch {
-    // Fall through to return empty
-  }
-
-  return [];
-}
-
 export default function ScatterPlot({
   title,
   data,
@@ -80,26 +28,14 @@ export default function ScatterPlot({
   color = "#8B5CF6",
   height = 300,
 }: ScatterPlotProps) {
-  const hasProvidedData = data && Array.isArray(data) && data.length > 0;
-  const providedFiltered = hasProvidedData
-    ? data.filter(row => row != null && typeof row === "object")
-    : [];
-
-  // Try to normalize provided data first; if it fails, fall back to demo
-  const demoData = revenueVsCustomersData.map((d) => ({ x: d.customers, y: d.revenue }));
-  let isDemoFallback = !hasProvidedData || providedFiltered.length === 0;
-  let finalData: ScatterPlotPoint[];
-
-  if (!isDemoFallback) {
-    const normalized = normalizeScatterData(providedFiltered);
-    if (normalized.length === 0) {
-      isDemoFallback = true;
-      finalData = normalizeScatterData(demoData);
-    } else {
-      finalData = normalized;
-    }
-  } else {
-    finalData = normalizeScatterData(demoData);
+  const finalData = prepareScatterData(data);
+  if (!finalData.length) {
+    return (
+      <InvalidWidgetState
+        title={title || "Scatter plot unavailable"}
+        message="No valid numeric x/y points were supplied for this chart."
+      />
+    );
   }
 
   return (
@@ -110,15 +46,14 @@ export default function ScatterPlot({
     >
       <Card className="p-6 border-2 border-slate-200 dark:border-slate-700 hover:shadow-lg transition-shadow">
         <div className="flex items-center justify-between gap-3 mb-4">
-          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">{title}</h3>
-          {isDemoFallback ? (
-            <span className="text-xs px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-600">
-              Demo data
-            </span>
-          ) : null}
+          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+            {title}
+          </h3>
         </div>
         <ResponsiveContainer width="100%" height={height}>
-          <RechartsScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+          <RechartsScatterChart
+            margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+          >
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
             <XAxis
               type="number"

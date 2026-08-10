@@ -9,8 +9,8 @@ import { DataProvider } from "./contexts/DataContext";
 import { DashboardNavProvider } from "./contexts/DashboardNavContext";
 import Home from "./pages/Home";
 import Navbar from "./components/Navbar";
-import { TamboProvider } from "@tambo-ai/react";
-import { tamboComponents } from "@/lib/tamboComponents";
+import TamboAppProvider from "@/components/providers/TamboAppProvider";
+import { tamboApiKey } from "@/config/tambo";
 
 function Router() {
   return (
@@ -31,22 +31,20 @@ function Router() {
 
 function App() {
   const isDev = import.meta.env.DEV;
-  const tamboApiKey = import.meta.env.VITE_TAMBO_API_KEY?.trim() || undefined;
-
   return (
     <ErrorBoundary>
       <ThemeProvider defaultPreference="system">
         <TooltipProvider>
           <Toaster />
           {tamboApiKey ? (
-            <TamboProvider apiKey={tamboApiKey} components={tamboComponents}>
+            <TamboAppProvider apiKey={tamboApiKey}>
               <DataProvider>
                 <DashboardNavProvider>
                   <Navbar />
                   <Router />
                 </DashboardNavProvider>
               </DataProvider>
-            </TamboProvider>
+            </TamboAppProvider>
           ) : (
             <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 p-6">
               <div className="max-w-lg w-full bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-lg p-6 shadow-sm">
@@ -59,15 +57,17 @@ function App() {
                 {isDev ? (
                   <>
                     <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">
-                      Set <span className="font-mono">VITE_TAMBO_API_KEY</span> in your
-                      <span className="font-mono"> .env</span> file or environment.
+                      Set <span className="font-mono">VITE_TAMBO_API_KEY</span>{" "}
+                      in your
+                      <span className="font-mono"> .env</span> file or
+                      environment.
                     </p>
                     <pre className="mt-4 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md p-3 overflow-auto text-slate-800 dark:text-slate-300">
-VITE_TAMBO_API_KEY=your_key_here
+                      VITE_TAMBO_API_KEY=your_key_here
                     </pre>
                     <p className="text-sm text-slate-600 mt-3">
-                      See <span className="font-mono">TAMBO_SETUP.md</span> for setup
-                      steps.
+                      See <span className="font-mono">TAMBO_SETUP.md</span> for
+                      setup steps.
                     </p>
                   </>
                 ) : null}

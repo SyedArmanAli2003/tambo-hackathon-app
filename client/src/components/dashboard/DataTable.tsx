@@ -2,14 +2,9 @@ import React, { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { ArrowUpDown } from "lucide-react";
 import { motion } from "framer-motion";
-import { topCustomersData } from "@/lib/mockData";
-
-interface DataTableProps {
-  title: string;
-  columns?: string[];
-  data?: Array<Record<string, any>>;
-  sortable?: boolean;
-}
+import InvalidWidgetState from "./InvalidWidgetState";
+import { prepareTableData } from "@/lib/chartData";
+import type { DataRow, DataTableProps } from "@/lib/componentSchemas";
 
 /**
  * DataTable Component
@@ -22,44 +17,14 @@ export default function DataTable({
   data,
   sortable = true,
 }: DataTableProps) {
-  const demoColumns = ["Name", "Revenue", "Status", "Growth"];
-  const rawData = (data ?? topCustomersData) as Array<Record<string, any>>;
-  const isDemoFallback = typeof data === "undefined" || !Array.isArray(data) || data.length === 0;
-  const finalData = isDemoFallback ? rawData : rawData;
-  const inferredColumns =
-    finalData.length > 0 ? Object.keys(finalData[0] ?? {}) : [];
-  const finalColumns = columns ?? (inferredColumns.length ? inferredColumns : demoColumns);
-
-  if (import.meta.env.DEV && isDemoFallback) {
-    console.warn("DataTable: using default demo dataset", {
-      title,
-      columnsMissing: typeof columns === "undefined",
-      dataMissing: typeof data === "undefined",
-    });
-  }
-
-  if (import.meta.env.DEV && finalData.length > 0) {
-    const sampleKeys = Object.keys(finalData[0] ?? {});
-    const sampleKeysLower = new Set(sampleKeys.map(k => k.toLowerCase()));
-    const missingColumns = finalColumns.filter(
-      c => !sampleKeysLower.has(c.toLowerCase())
-    );
-
-    if (missingColumns.length > 0) {
-      console.warn("DataTable: some columns do not match row keys", {
-        title,
-        missingColumns,
-        sampleKeys,
-      });
-    }
-  }
+  const prepared = prepareTableData(data, columns);
 
   const [sortConfig, setSortConfig] = useState<{
     key: string;
     direction: "asc" | "desc";
   } | null>(null);
 
-  const resolveColumnKey = (row: Record<string, any>, column: string) => {
+  const resolveColumnKey = (row: DataRow, column: string) => {
     const match = Object.keys(row).find(
       key => key.toLowerCase() === column.toLowerCase()
     );
@@ -70,9 +35,8 @@ export default function DataTable({
 
   const handleSort = (column: string) => {
     if (!sortable) return;
-
-    if (finalData.length === 0) return;
-    const resolvedKey = resolveColumnKey(finalData[0] ?? {}, column);
+    if (!prepared) return;
+    const resolvedKey = resolveColumnKey(prepared.data[0], column);
     if (!resolvedKey) return;
 
     let direction: "asc" | "desc" = "asc";
@@ -83,14 +47,17 @@ export default function DataTable({
   };
 
   const sortedData = useMemo(() => {
-    if (!sortable || !sortConfig) return finalData;
+    if (!prepared) return [];
+    if (!sortable || !sortConfig) return prepared.data;
 
-    return [...finalData].sort((a, b) => {
+    return [...prepared.data].sort((a, b) => {
       const aValue = a[sortConfig.key];
       const bValue = b[sortConfig.key];
 
       if (typeof aValue === "number" && typeof bValue === "number") {
-        return sortConfig.direction === "asc" ? aValue - bValue : bValue - aValue;
+        return sortConfig.direction === "asc"
+          ? aValue - bValue
+          : bValue - aValue;
       }
 
       const aStr = String(aValue).toLowerCase();
@@ -99,7 +66,16 @@ export default function DataTable({
         ? aStr.localeCompare(bStr)
         : bStr.localeCompare(aStr);
     });
-  }, [finalData, sortable, sortConfig]);
+  }, [prepared, sortable, sortConfig]);
+
+  if (!prepared) {
+    return (
+      <InvalidWidgetState
+        title={title || "Data table unavailable"}
+        message="No valid rows were supplied, or the requested columns do not exist in the data."
+      />
+    );
+  }
 
   return (
     <motion.div
@@ -109,23 +85,22 @@ export default function DataTable({
     >
       <Card className="p-6 border-2 border-slate-200 dark:border-slate-700 hover:shadow-lg transition-shadow overflow-hidden">
         <div className="flex items-center justify-between gap-3 mb-4">
-          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">{title}</h3>
-          {isDemoFallback ? (
-            <span className="text-xs px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-600">
-              Demo data
-            </span>
-          ) : null}
+          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+            {title}
+          </h3>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b-2 border-slate-200 dark:border-slate-700">
-                {finalColumns.map((column) => (
+                {prepared.columns.map(column => (
                   <th
                     key={column}
                     onClick={() => handleSort(column)}
                     className={`px-4 py-3 text-left text-sm font-semibold text-slate-900 dark:text-slate-100 ${
-                      sortable ? "cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" : ""
+                      sortable
+                        ? "cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800"
+                        : ""
                     }`}
                   >
                     <div className="flex items-center gap-2">
@@ -147,7 +122,7 @@ export default function DataTable({
                   transition={{ delay: rowIndex * 0.05 }}
                   className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
                 >
-                  {finalColumns.map((column) => {
+                  {prepared.columns.map(column => {
                     // Get the key from the data row that matches the column name
                     const columnKey = resolveColumnKey(row, column);
                     return (
@@ -173,7 +148,7 @@ export default function DataTable({
 }
 
 // Helper function to format table values
-function formatTableValue(value: any): string {
+function formatTableValue(value: DataRow[string]): string {
   if (value == null) return "";
   if (typeof value === "number") {
     return value.toLocaleString();
